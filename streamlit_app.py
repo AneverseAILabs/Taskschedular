@@ -70,10 +70,10 @@ if st.button("Generate Response"):
     elif prompt:
         with st.spinner("Thinking..."):
 
-            response = client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=prompt
-            )
+           response = client.models.generate_content(
+    model="gemini-2.0-flash",
+    contents=prompt
+)
 
             st.markdown(
                 f'<div class="response-box">{response.text}</div>',
