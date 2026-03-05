@@ -7,9 +7,11 @@ st.set_page_config(page_title="AI Assistant", layout="wide")
 st.markdown("""
 <style>
 
-h1 {
-color: purple;
+.title {
+color: #ff4da6;
 text-align: center;
+font-size: 40px;
+font-weight: bold;
 }
 
 .result-box {
@@ -25,7 +27,7 @@ margin-top: 20px;
 """, unsafe_allow_html=True)
 
 # Title
-st.title("🤖 Groq AI Assistant")
+st.markdown('<div class="title">🤖 Groq AI Assistant</div>', unsafe_allow_html=True)
 
 # Sidebar API key
 api_key = st.sidebar.text_input("Enter Groq API Key", type="password")
