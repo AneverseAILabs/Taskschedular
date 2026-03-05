@@ -3,6 +3,28 @@ from groq import Groq
 
 st.set_page_config(page_title="AI Assistant", layout="wide")
 
+# Custom CSS
+st.markdown("""
+<style>
+
+h1 {
+color: purple;
+text-align: center;
+}
+
+.result-box {
+background-color: #f5f5f5;
+color: violet;
+padding: 20px;
+border-radius: 10px;
+font-size: 18px;
+margin-top: 20px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# Title
 st.title("🤖 Groq AI Assistant")
 
 # Sidebar API key
@@ -23,12 +45,14 @@ if st.button("Generate Response"):
 
             chat = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+                messages=[{"role": "user", "content": prompt}]
             )
 
             response = chat.choices[0].message.content
 
             st.subheader("Response")
-            st.write(response)
+
+            st.markdown(
+                f'<div class="result-box">{response}</div>',
+                unsafe_allow_html=True
+            )
