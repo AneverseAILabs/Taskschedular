@@ -8,7 +8,6 @@ st.title("🤖 Groq AI Assistant")
 # Sidebar API key
 api_key = st.sidebar.text_input("Enter Groq API Key", type="password")
 
-# User input
 prompt = st.text_area("Ask something")
 
 if st.button("Generate Response"):
@@ -23,7 +22,7 @@ if st.button("Generate Response"):
         with st.spinner("Thinking..."):
 
             chat = client.chat.completions.create(
-                model="llama3-8b-8192",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "user", "content": prompt}
                 ]
