@@ -11,7 +11,34 @@ from sklearn.linear_model import LinearRegression
 st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
 
 st.markdown("<h1 style='color:purple;text-align:center;'>📈 AI Investor Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("""
+<style>
 
+html, body, [class*="css"]  {
+    color: teal;
+    font-family: 'Arial';
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: teal;
+}
+
+p, label, span, div {
+    color: teal;
+}
+
+.stMetric {
+    color: teal;
+}
+
+.stButton>button {
+    background-color: teal;
+    color: white;
+    border-radius: 8px;
+}
+
+</style>
+""", unsafe_allow_html=True)
 # Sidebar API key
 api_key = st.sidebar.text_input("Groq API Key", type="password")
 
