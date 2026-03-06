@@ -103,15 +103,23 @@ st.success(f"Predicted Next Price: ₹{round(prediction[0],2)}")
 
 st.subheader("📰 Latest News")
 
-news_url = f"https://news.google.com/rss/search?q={company}+stock"
+import feedparser
+import urllib.parse
+
+st.subheader("📰 Latest News")
+
+query = urllib.parse.quote(company + " stock")
+
+news_url = f"https://news.google.com/rss/search?q={query}"
 
 feed = feedparser.parse(news_url)
 
-for entry in feed.entries[:5]:
-
-    st.write(entry.title)
-    st.write(entry.link)
-
+if feed.entries:
+    for entry in feed.entries[:5]:
+        st.markdown(f"**{entry.title}**")
+        st.write(entry.link)
+else:
+    st.write("No news found.")
 # --------------------------------------------------
 # Investor Recommendation
 # --------------------------------------------------
