@@ -21,17 +21,11 @@ background-color:#f5f7fb;
 }
 
 /* Main title */
-h1 {
-color:#7c3aed;
-text-align:center;
-font-weight:800;
+h1, h2, h3, h4, h5, h6 {
+    color: teal;
 }
 
-/* Section headings */
-h2,h3 {
-color:#0f766e;
-font-weight:600;
-}
+
 
 /* Card container */
 .card {
