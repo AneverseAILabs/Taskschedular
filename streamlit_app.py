@@ -15,60 +15,30 @@ st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
 st.markdown("""
 <style>
 
-/* App background */
+/* All text */
+body, p, div, span, label {
+    color: teal;
+}
 
-/* Main title */
+/* Headings */
 h1, h2, h3, h4, h5, h6 {
     color: teal;
 }
 
-
-
-/* Card container */
-.card {
-background:white;
-padding:20px;
-border-radius:12px;
-box-shadow:0px 6px 14px rgba(0,0,0,0.08);
-margin-bottom:20px;
+/* Metric values */
+[data-testid="stMetricValue"] {
+    color: teal;
 }
 
-/* Metric cards */
-[data-testid="stMetric"] {
-background:#ecfeff;
-padding:15px;
-border-radius:10px;
-border:1px solid #cffafe;
-}
-
-/* Buttons */
-.stButton>button {
-background:linear-gradient(90deg,#7c3aed,#0ea5e9);
-color:white;
-border:none;
-border-radius:8px;
-padding:10px 18px;
-font-weight:600;
-}
-
-/* Select box */
-div[data-baseweb="select"] {
-background:white;
-border-radius:8px;
-}
-
-/* News items */
-.news-card {
-background:#ffffff;
-padding:15px;
-border-radius:10px;
-border-left:4px solid #7c3aed;
-margin-bottom:10px;
+/* Button text */
+.stButton > button {
+    background-color: teal;
+    color: white;
+    border-radius: 8px;
 }
 
 </style>
 """, unsafe_allow_html=True)
-
 st.title("📈 AI Investor Dashboard")
 
 # ---------------------------------------------------
