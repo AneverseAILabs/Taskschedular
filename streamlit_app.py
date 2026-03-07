@@ -2,13 +2,59 @@ import streamlit as st
 import yfinance as yf
 from groq import Groq
 
+# ---------------------------------------------------
+# PAGE CONFIG
+# ---------------------------------------------------
+
 st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
+
+# ---------------------------------------------------
+# COLORFUL STYLE
+# ---------------------------------------------------
+
+st.markdown("""
+<style>
+
+body {
+background-color:#f8fafc;
+color:#0f766e;
+}
+
+h1 {
+color:#6b21a8;
+text-align:center;
+}
+
+h2,h3 {
+color:#0d9488;
+}
+
+.stMetric {
+background-color:#ecfeff;
+padding:10px;
+border-radius:10px;
+}
+
+.stButton>button {
+background-color:#7c3aed;
+color:white;
+border-radius:8px;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 st.title("📈 AI Investor Dashboard")
 
-# --------------------------------------
-# Company Dropdown
-# --------------------------------------
+# ---------------------------------------------------
+# API KEY
+# ---------------------------------------------------
+
+api_key = st.text_input(st.secrets["GROQ_API_KEY"]")
+
+# ---------------------------------------------------
+# COMPANY DROPDOWN
+# ---------------------------------------------------
 
 companies = {
 "Reliance Industries":"RELIANCE.NS",
@@ -28,9 +74,9 @@ stock = yf.Ticker(ticker)
 
 data = stock.history(period="10y")
 
-# --------------------------------------
-# Growth Metrics
-# --------------------------------------
+# ---------------------------------------------------
+# GROWTH METRICS
+# ---------------------------------------------------
 
 st.subheader("📊 Growth Performance")
 
@@ -42,7 +88,6 @@ def calc_growth(days):
         return round(((new-old)/old)*100,2)
 
     return None
-
 
 growth = {
 "10Y":calc_growth(252*10),
@@ -59,12 +104,11 @@ growth = {
 cols = st.columns(len(growth))
 
 for col,(k,v) in zip(cols,growth.items()):
-
     col.metric(k,f"{v}%")
 
-# --------------------------------------
-# Latest News
-# --------------------------------------
+# ---------------------------------------------------
+# NEWS
+# ---------------------------------------------------
 
 st.subheader("📰 Latest News")
 
@@ -75,7 +119,6 @@ if news:
     for item in news[:5]:
 
         title = item.get("title","No title")
-
         link = item.get("link","")
 
         st.markdown(f"**{title}**")
@@ -84,12 +127,11 @@ if news:
             st.write(link)
 
 else:
-
     st.write("No news available")
 
-# --------------------------------------
-# Acquisition Detection
-# --------------------------------------
+# ---------------------------------------------------
+# ACQUISITION DETECTION
+# ---------------------------------------------------
 
 st.subheader("🤝 Acquisitions / Mergers")
 
@@ -103,35 +145,41 @@ for item in news:
 
         st.write("🔹",item.get("title",""))
 
-# --------------------------------------
-# AI Guidance
-# --------------------------------------
+# ---------------------------------------------------
+# AI GUIDANCE
+# ---------------------------------------------------
 
 st.subheader("🧠 AI Investment Guidance")
 
 if st.button("Generate AI Insight"):
 
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+    if not api_key:
 
-    prompt = f"""
-    Provide investment guidance for {company}
+        st.warning("Enter Groq API key")
 
-    Growth metrics:
-    10Y: {growth["10Y"]}%
-    5Y: {growth["5Y"]}%
-    1Y: {growth["1Y"]}%
+    else:
 
-    Provide:
-    - Company outlook
-    - Key risks
-    - Recommendation (Buy/Hold/Sell)
-    """
+        client = Groq(api_key=api_key)
 
-    chat = client.chat.completions.create(
+        prompt = f"""
+        Provide investment guidance for {company}
+
+        Growth metrics:
+        10Y: {growth["10Y"]}%
+        5Y: {growth["5Y"]}%
+        1Y: {growth["1Y"]}%
+
+        Provide:
+        - Company outlook
+        - Key risks
+        - Recommendation (Buy/Hold/Sell)
+        """
+
+        chat = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[{"role":"user","content":prompt}]
-    )
+        )
 
-    result = chat.choices[0].message.content
+        result = chat.choices[0].message.content
 
-    st.write(result)
+        st.write(result)
