@@ -143,7 +143,7 @@ else:
 # ACQUISITION / MERGER
 # ---------------------------------------------------
 
-st.subheader("🤝 Acquisitions / Mergers")
+st.subheader(" Acquisitions / Mergers")
 
 keywords = ["acquisition","acquire","merger","stake","buy"]
 
@@ -165,7 +165,7 @@ if not found:
 # AI GUIDANCE
 # ---------------------------------------------------
 
-st.subheader("🧠 AI Investment Guidance")
+st.subheader(" AI Investment Guidance")
 
 if st.button("Generate AI Insight"):
 
