@@ -16,9 +16,6 @@ st.markdown("""
 <style>
 
 /* App background */
-.stApp {
-background-color:#f5f7fb;
-}
 
 /* Main title */
 h1, h2, h3, h4, h5, h6 {
