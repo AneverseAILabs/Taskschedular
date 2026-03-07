@@ -15,30 +15,26 @@ st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
 st.markdown("""
 <style>
 
-body {
-background-color:#f8fafc;
-color:#0f766e;
+/* All text */
+body, p, div, span, label {
+    color: teal;
 }
 
-h1 {
-color:#7c3aed;
-text-align:center;
+/* Headings */
+h1, h2, h3, h4, h5 {
+    color: purple;
 }
 
-h2,h3 {
-color:#0d9488;
+/* Metrics */
+[data-testid="stMetricValue"] {
+    color: teal;
 }
 
-.stMetric {
-background-color:#ecfeff;
-padding:10px;
-border-radius:10px;
-}
-
-.stButton>button {
-background-color:#7c3aed;
-color:white;
-border-radius:8px;
+/* Buttons */
+.stButton > button {
+    background-color: purple;
+    color: white;
+    border-radius: 8px;
 }
 
 </style>
