@@ -9,7 +9,7 @@ from groq import Groq
 st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
 
 # ---------------------------------------------------
-# COLORFUL STYLE
+# COLOR STYLE
 # ---------------------------------------------------
 
 st.markdown("""
@@ -21,7 +21,7 @@ color:#0f766e;
 }
 
 h1 {
-color:#6b21a8;
+color:#7c3aed;
 text-align:center;
 }
 
@@ -47,13 +47,7 @@ border-radius:8px;
 st.title("📈 AI Investor Dashboard")
 
 # ---------------------------------------------------
-# API KEY
-# ---------------------------------------------------
-
-api_key = st.text_input(st.secrets["GROQ_API_KEY"])
-
-# ---------------------------------------------------
-# COMPANY DROPDOWN
+# COMPANY LIST
 # ---------------------------------------------------
 
 companies = {
@@ -75,10 +69,24 @@ stock = yf.Ticker(ticker)
 data = stock.history(period="10y")
 
 # ---------------------------------------------------
+# STOCK STATS
+# ---------------------------------------------------
+
+info = stock.info
+
+st.subheader("📊 Company Stats")
+
+col1,col2,col3 = st.columns(3)
+
+col1.metric("Market Cap", info.get("marketCap"))
+col2.metric("PE Ratio", info.get("trailingPE"))
+col3.metric("Dividend Yield", info.get("dividendYield"))
+
+# ---------------------------------------------------
 # GROWTH METRICS
 # ---------------------------------------------------
 
-st.subheader("📊 Growth Performance")
+st.subheader("📈 Growth Performance")
 
 def calc_growth(days):
 
@@ -88,6 +96,7 @@ def calc_growth(days):
         return round(((new-old)/old)*100,2)
 
     return None
+
 
 growth = {
 "10Y":calc_growth(252*10),
@@ -127,15 +136,18 @@ if news:
             st.write(link)
 
 else:
+
     st.write("No news available")
 
 # ---------------------------------------------------
-# ACQUISITION DETECTION
+# ACQUISITION / MERGER
 # ---------------------------------------------------
 
 st.subheader("🤝 Acquisitions / Mergers")
 
 keywords = ["acquisition","acquire","merger","stake","buy"]
+
+found = False
 
 for item in news:
 
@@ -144,6 +156,10 @@ for item in news:
     if any(k in title for k in keywords):
 
         st.write("🔹",item.get("title",""))
+        found = True
+
+if not found:
+    st.write("No acquisition related news found")
 
 # ---------------------------------------------------
 # AI GUIDANCE
@@ -153,33 +169,31 @@ st.subheader("🧠 AI Investment Guidance")
 
 if st.button("Generate AI Insight"):
 
-    if not api_key:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-        st.warning("Enter Groq API key")
+    prompt = f"""
+    Provide investment guidance for {company}
 
-    else:
+    Growth metrics:
+    10Y: {growth["10Y"]}%
+    5Y: {growth["5Y"]}%
+    1Y: {growth["1Y"]}%
 
-        client = Groq(api_key=api_key)
+    Company stats:
+    Market Cap: {info.get("marketCap")}
+    PE Ratio: {info.get("trailingPE")}
 
-        prompt = f"""
-        Provide investment guidance for {company}
+    Provide:
+    - Company outlook
+    - Key risks
+    - Recommendation (Buy/Hold/Sell)
+    """
 
-        Growth metrics:
-        10Y: {growth["10Y"]}%
-        5Y: {growth["5Y"]}%
-        1Y: {growth["1Y"]}%
-
-        Provide:
-        - Company outlook
-        - Key risks
-        - Recommendation (Buy/Hold/Sell)
-        """
-
-        chat = client.chat.completions.create(
+    chat = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[{"role":"user","content":prompt}]
-        )
+    )
 
-        result = chat.choices[0].message.content
+    result = chat.choices[0].message.content
 
-        st.write(result)
+    st.write(result)
