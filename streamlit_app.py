@@ -50,7 +50,7 @@ st.title("📈 AI Investor Dashboard")
 # API KEY
 # ---------------------------------------------------
 
-api_key = st.text_input(st.secrets["GROQ_API_KEY"]")
+api_key = st.text_input(st.secrets["GROQ_API_KEY"])
 
 # ---------------------------------------------------
 # COMPANY DROPDOWN
