@@ -1,187 +1,116 @@
 import streamlit as st
 import yfinance as yf
+import plotly.graph_objects as go
 from groq import Groq
 
-# ---------------------------------------------------
+# ------------------------------------
 # PAGE CONFIG
-# ---------------------------------------------------
+# ------------------------------------
 
 st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
 
-# ---------------------------------------------------
-# COLOR STYLE
-# ---------------------------------------------------
+# ------------------------------------
+# UI STYLE
+# ------------------------------------
 
 st.markdown("""
 <style>
-
-/* All text */
-body, p, div, span, label {
-    color: teal;
-}
-
-/* Headings */
-h1, h2, h3, h4, h5, h6 {
-    color: teal;
-}
-
-/* Metric values */
-[data-testid="stMetricValue"] {
-    color: teal;
-}
-
-/* Button text */
-.stButton > button {
-    background-color: teal;
-    color: white;
-    border-radius: 8px;
-}
-
+.stApp {background-color:#f8fafc;}
+h1,h2,h3 {color: teal;}
+p,div,span {color:#6b7280;}
 </style>
 """, unsafe_allow_html=True)
+
 st.title("📈 AI Investor Dashboard")
 
-# ---------------------------------------------------
-# COMPANY LIST
-# ---------------------------------------------------
+# ------------------------------------
+# COMPANY DROPDOWN
+# ------------------------------------
 
 companies = {
 "Reliance Industries":"RELIANCE.NS",
 "TCS":"TCS.NS",
 "Infosys":"INFY.NS",
 "HDFC Bank":"HDFCBANK.NS",
-"ICICI Bank":"ICICIBANK.NS",
-"ITC":"ITC.NS",
-"Larsen & Toubro":"LT.NS"
+"ICICI Bank":"ICICIBANK.NS"
 }
 
 company = st.selectbox("Select Company", list(companies.keys()))
 
 ticker = companies[company]
 
+# ------------------------------------
+# TIME RANGE
+# ------------------------------------
+
+period = st.selectbox(
+"Select Time Range",
+["10y","7y","5y","3y","1y","6mo","3mo","1mo","5d","1d"]
+)
+
+# ------------------------------------
+# STOCK DATA
+# ------------------------------------
+
 stock = yf.Ticker(ticker)
 
-data = stock.history(period="10y")
+data = stock.history(period=period)
 
-# ---------------------------------------------------
-# STOCK STATS
-# ---------------------------------------------------
+# ------------------------------------
+# CHART
+# ------------------------------------
 
-info = stock.info
+fig = go.Figure()
 
-st.subheader("📊 Company Stats")
+fig.add_trace(go.Scatter(
+x=data.index,
+y=data["Close"],
+mode="lines",
+line=dict(color="teal",width=3)
+))
+
+fig.update_layout(
+template="plotly_white",
+height=450
+)
+
+st.plotly_chart(fig,width="stretch")
+
+# ------------------------------------
+# METRICS
+# ------------------------------------
+
+price = data["Close"].iloc[-1]
 
 col1,col2,col3 = st.columns(3)
 
-col1.metric("Market Cap", info.get("marketCap"))
-col2.metric("PE Ratio", info.get("trailingPE"))
-col3.metric("Dividend Yield", info.get("dividendYield"))
+col1.metric("Current Price",f"₹{price:,.2f}")
 
-# ---------------------------------------------------
-# GROWTH METRICS
-# ---------------------------------------------------
+col2.metric("High",f"₹{data['Close'].max():,.2f}")
 
-st.subheader("📈 Growth Performance")
+col3.metric("Low",f"₹{data['Close'].min():,.2f}")
 
-def calc_growth(days):
+# ------------------------------------
+# AI ANALYSIS
+# ------------------------------------
 
-    if len(data) > days:
-        old = data["Close"].iloc[-days]
-        new = data["Close"].iloc[-1]
-        return round(((new-old)/old)*100,2)
-
-    return None
-
-
-growth = {
-"10Y":calc_growth(252*10),
-"7.5Y":calc_growth(int(252*7.5)),
-"5Y":calc_growth(252*5),
-"3Y":calc_growth(252*3),
-"1Y":calc_growth(252),
-"6M":calc_growth(126),
-"3M":calc_growth(63),
-"1W":calc_growth(5),
-"1D":calc_growth(1)
-}
-
-cols = st.columns(len(growth))
-
-for col,(k,v) in zip(cols,growth.items()):
-    col.metric(k,f"{v}%")
-
-# ---------------------------------------------------
-# NEWS
-# ---------------------------------------------------
-
-st.subheader("📰 Latest News")
-
-news = stock.news
-
-if news:
-
-    for item in news[:5]:
-
-        title = item.get("title","No title")
-        link = item.get("link","")
-
-        st.markdown(f"**{title}**")
-
-        if link:
-            st.write(link)
-
-else:
-
-    st.write("No news available")
-
-# ---------------------------------------------------
-# ACQUISITION / MERGER
-# ---------------------------------------------------
-
-st.subheader(" Acquisitions / Mergers")
-
-keywords = ["acquisition","acquire","merger","stake","buy"]
-
-found = False
-
-for item in news:
-
-    title = item.get("title","").lower()
-
-    if any(k in title for k in keywords):
-
-        st.write("🔹",item.get("title",""))
-        found = True
-
-if not found:
-    st.write("No acquisition related news found")
-
-# ---------------------------------------------------
-# AI GUIDANCE
-# ---------------------------------------------------
-
-st.subheader(" AI Investment Guidance")
+st.subheader("🤖 AI Stock Analysis")
 
 if st.button("Generate AI Insight"):
 
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
     prompt = f"""
-    Provide investment guidance for {company}
+    Analyze the stock {company}.
 
-    Growth metrics:
-    10Y: {growth["10Y"]}%
-    5Y: {growth["5Y"]}%
-    1Y: {growth["1Y"]}%
-
-    Company stats:
-    Market Cap: {info.get("marketCap")}
-    PE Ratio: {info.get("trailingPE")}
+    Current Price: {price}
+    Period: {period}
 
     Provide:
-    - Company outlook
-    - Key risks
-    - Recommendation (Buy/Hold/Sell)
+    - short company overview
+    - investment outlook
+    - potential risks
+    - recommendation (Buy / Hold / Sell)
     """
 
     chat = client.chat.completions.create(
