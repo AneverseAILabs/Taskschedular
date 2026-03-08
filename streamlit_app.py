@@ -12,90 +12,37 @@ st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
 st.markdown("""
 <style>
 
-/* App background */
-.stApp {
-background-color:#f5f7fb;
-font-family: 'Inter', sans-serif;
+/* All text teal */
+body, p, div, span, label {
+    color: teal;
 }
 
-/* Main title */
+/* Large headings */
 h1 {
-color: teal;
-font-size:48px;
-font-weight:700;
-margin-bottom:10px;
+    color: teal;
+    font-size: 40px;
+    font-weight: 700;
 }
 
-/* Section headings */
 h2 {
-color: teal;
-font-size:32px;
-font-weight:600;
+    color: teal;
+    font-size: 32px;
 }
 
 h3 {
-color: teal;
-font-size:24px;
-font-weight:600;
+    color: teal;
+    font-size: 26px;
 }
 
-/* Normal text */
-p, div, span {
-color:#4b5563;
-font-size:15px;
-}
-
-/* Metric cards */
-[data-testid="stMetric"] {
-background:white;
-padding:16px;
-border-radius:12px;
-box-shadow:0px 3px 10px rgba(0,0,0,0.05);
-border:1px solid #e5e7eb;
-}
-
-/* Metric value */
+/* Metrics */
 [data-testid="stMetricValue"] {
-color:teal;
-font-size:22px;
-font-weight:700;
-}
-
-/* Metric label */
-[data-testid="stMetricLabel"] {
-color:#6b7280;
+    color: teal;
 }
 
 /* Buttons */
 .stButton > button {
-background:teal;
-color:white;
-border:none;
-border-radius:8px;
-padding:8px 18px;
-font-weight:600;
-transition:0.3s;
-}
-
-.stButton > button:hover {
-background:#0f766e;
-transform:scale(1.03);
-}
-
-/* Tables */
-thead tr th {
-background:#e6fffa;
-color:teal;
-font-weight:600;
-}
-
-tbody tr:hover {
-background:#f0fdfa;
-}
-
-/* Select box */
-div[data-baseweb="select"] {
-border-radius:8px;
+    background-color: teal;
+    color: white;
 }
 
 </style>
