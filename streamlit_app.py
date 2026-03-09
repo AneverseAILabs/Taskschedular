@@ -5,15 +5,15 @@ import feedparser
 import urllib.parse
 from groq import Groq
 
-# ------------------------------------------------
+# --------------------------------
 # PAGE CONFIG
-# ------------------------------------------------
+# --------------------------------
 
 st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
 
-# ------------------------------------------------
-# PROFESSIONAL CSS
-# ------------------------------------------------
+# --------------------------------
+# UI STYLE
+# --------------------------------
 
 st.markdown("""
 <style>
@@ -22,18 +22,14 @@ st.markdown("""
 background-color:#f4f6f9;
 }
 
-/* title */
-h1{
-color:teal;
-text-align:center;
-font-size:42px;
-margin-bottom:10px;
+/* headings */
+h1,h2,h3,h4{
+color:teal !important;
 }
 
-/* section headings */
-h2,h3{
-color:teal;
-margin-top:30px;
+/* normal text */
+p,div,span,label{
+color:#6b7280 !important;
 }
 
 /* cards */
@@ -45,22 +41,21 @@ box-shadow:0 3px 8px rgba(0,0,0,0.08);
 margin-bottom:15px;
 }
 
-/* table */
+/* table header */
 thead tr th{
 background:#e6fffa;
 color:teal;
-font-weight:bold;
 }
 
-/* button */
-.stButton > button{
+/* buttons */
+.stButton>button{
 background:teal;
 color:white;
 border-radius:8px;
 padding:8px 18px;
 }
 
-/* news cards */
+/* news card */
 .news-card{
 background:white;
 padding:12px;
@@ -73,17 +68,17 @@ box-shadow:0 2px 6px rgba(0,0,0,0.05);
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------------------------------------
+# --------------------------------
 # HEADER
-# ------------------------------------------------
+# --------------------------------
 
 st.title("AI Investor Dashboard")
 
-st.write("Analyze companies, growth performance, news, and AI insights.")
+st.write("Analyze company growth, news and AI investment insights.")
 
-# ------------------------------------------------
+# --------------------------------
 # COMPANY SELECT
-# ------------------------------------------------
+# --------------------------------
 
 companies = {
 "Reliance Industries":"RELIANCE.NS",
@@ -97,9 +92,9 @@ company = st.selectbox("Select Company", list(companies.keys()))
 
 ticker = companies[company]
 
-# ------------------------------------------------
+# --------------------------------
 # STOCK DATA
-# ------------------------------------------------
+# --------------------------------
 
 stock = yf.Ticker(ticker)
 
@@ -107,9 +102,9 @@ data = stock.history(period="max")
 
 price = data["Close"].iloc[-1]
 
-# ------------------------------------------------
-# GROWTH FUNCTION (DATE BASED)
-# ------------------------------------------------
+# --------------------------------
+# GROWTH FUNCTION
+# --------------------------------
 
 def calc_growth(years=None, months=None, days=None):
 
@@ -126,19 +121,19 @@ def calc_growth(years=None, months=None, days=None):
 
     past = data[data.index <= target]
 
-    if len(past) == 0:
+    if len(past)==0:
         return None
 
     past_price = past["Close"].iloc[-1]
 
     return round(((price-past_price)/past_price)*100,2)
 
-# ------------------------------------------------
+# --------------------------------
 # GROWTH TABLE
-# ------------------------------------------------
+# --------------------------------
 
 growth = {
-"Overall": round(((price-data["Close"].iloc[0])/data["Close"].iloc[0])*100,2),
+"Overall": round(((price-data['Close'].iloc[0])/data['Close'].iloc[0])*100,2),
 "15 Years":calc_growth(years=15),
 "10 Years":calc_growth(years=10),
 "5 Years":calc_growth(years=5),
@@ -166,9 +161,9 @@ use_container_width=True
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ------------------------------------------------
+# --------------------------------
 # CURRENT PRICE
-# ------------------------------------------------
+# --------------------------------
 
 st.subheader("Current Price")
 
@@ -178,9 +173,9 @@ st.metric("Price",f"₹{price:,.2f}")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ------------------------------------------------
+# --------------------------------
 # NEWS
-# ------------------------------------------------
+# --------------------------------
 
 st.subheader("Latest News")
 
@@ -203,9 +198,9 @@ for entry in feed.entries[:5]:
 
     news_text += entry.title + "\n"
 
-# ------------------------------------------------
+# --------------------------------
 # AI ANALYSIS
-# ------------------------------------------------
+# --------------------------------
 
 st.subheader("AI Analysis")
 
@@ -225,7 +220,6 @@ if st.button("Run AI Analysis"):
     {news_text}
 
     Provide:
-
     1. Investment score (0-100)
     2. News sentiment
     3. Growth outlook
@@ -239,9 +233,9 @@ if st.button("Run AI Analysis"):
 
     st.write(chat.choices[0].message.content)
 
-# ------------------------------------------------
-# CONTACT FOOTER
-# ------------------------------------------------
+# --------------------------------
+# CONTACT
+# --------------------------------
 
 st.markdown("""
 <hr>
