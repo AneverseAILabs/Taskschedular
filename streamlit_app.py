@@ -3,55 +3,63 @@ import yfinance as yf
 import pandas as pd
 from groq import Groq
 
+# -----------------------------------
+# PAGE CONFIG
+# -----------------------------------
+
 st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
 
-# -------------------------
-# UI STYLE
-# -------------------------
+# -----------------------------------
+# CSS THEME
+# -----------------------------------
 
 st.markdown("""
 <style>
 
-/* All text teal */
-body, p, div, span, label {
-    color: teal;
+.stApp {
+background-color:#f5f7fb;
 }
 
-/* Large headings */
-h1 {
-    color: teal;
-    font-size: 40px;
-    font-weight: 700;
+.header {
+background-color:teal;
+padding:15px;
+text-align:center;
+color:white;
+font-size:28px;
+font-weight:bold;
+border-radius:8px;
+margin-bottom:20px;
 }
 
-h2 {
-    color: teal;
-    font-size: 32px;
+h1,h2,h3 {
+color:teal;
 }
 
-h3 {
-    color: teal;
-    font-size: 26px;
+p,div,span {
+color:#6b7280;
 }
 
-/* Metrics */
-[data-testid="stMetricValue"] {
-    color: teal;
-}
-
-/* Buttons */
-.stButton > button {
-    background-color: teal;
-    color: white;
+footer {
+text-align:center;
+color:gray;
+margin-top:40px;
+font-size:14px;
 }
 
 </style>
 """, unsafe_allow_html=True)
-st.title("📊 AI Investor Dashboard")
 
-# -------------------------
+# -----------------------------------
+# HEADER
+# -----------------------------------
+
+st.markdown('<div class="header">AI Investor Dashboard</div>', unsafe_allow_html=True)
+
+st.write("Analyze companies, view growth performance, read news, and get AI investment insights.")
+
+# -----------------------------------
 # COMPANY DROPDOWN
-# -------------------------
+# -----------------------------------
 
 companies = {
 "Reliance Industries":"RELIANCE.NS",
@@ -65,9 +73,9 @@ company = st.selectbox("Select Company", list(companies.keys()))
 
 ticker = companies[company]
 
-# -------------------------
+# -----------------------------------
 # STOCK DATA
-# -------------------------
+# -----------------------------------
 
 stock = yf.Ticker(ticker)
 
@@ -75,22 +83,24 @@ data = stock.history(period="10y")
 
 price = data["Close"].iloc[-1]
 
-# -------------------------
+# -----------------------------------
 # GROWTH FUNCTION
-# -------------------------
+# -----------------------------------
 
 def calc_growth(days):
 
     if len(data) > days:
+
         old = data["Close"].iloc[-days]
         new = data["Close"].iloc[-1]
+
         return round(((new-old)/old)*100,2)
 
     return None
 
-# -------------------------
+# -----------------------------------
 # PERFORMANCE TABLE
-# -------------------------
+# -----------------------------------
 
 growth = {
 "10 Years":calc_growth(252*10),
@@ -109,21 +119,21 @@ list(growth.items()),
 columns=["Period","Growth %"]
 )
 
-st.subheader("📈 Performance")
+st.subheader("Performance")
 
 st.table(table)
 
-# -------------------------
-# PRICE
-# -------------------------
+# -----------------------------------
+# CURRENT PRICE
+# -----------------------------------
 
 st.metric("Current Price", f"₹{price:,.2f}")
 
-# -------------------------
-# NEWS SECTION
-# -------------------------
+# -----------------------------------
+# NEWS
+# -----------------------------------
 
-st.subheader("📰 Latest News")
+st.subheader("Latest News")
 
 news = stock.news
 
@@ -131,7 +141,7 @@ if news:
 
     for item in news[:5]:
 
-        title = item.get("title","No title available")
+        title = item.get("title","No title")
         link = item.get("link","")
 
         st.markdown(f"**{title}**")
@@ -143,22 +153,22 @@ else:
 
     st.write("No news available")
 
-# -------------------------
+# -----------------------------------
 # AI ANALYSIS
-# -------------------------
+# -----------------------------------
 
-st.subheader("🤖 AI Investment Insight")
+st.subheader("AI Investment Insight")
 
 if st.button("Generate AI Analysis"):
 
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
     prompt = f"""
-    Analyze the stock {company}.
+    Analyze the stock {company}
 
     Current Price: {price}
 
-    Growth performance:
+    Growth Performance:
     {growth}
 
     Provide:
@@ -176,3 +186,15 @@ if st.button("Generate AI Analysis"):
     result = chat.choices[0].message.content
 
     st.write(result)
+
+# -----------------------------------
+# FOOTER
+# -----------------------------------
+
+st.markdown("""
+<hr>
+<footer>
+AI Investor Dashboard<br>
+Contact: <b>9616216095</b>
+</footer>
+""", unsafe_allow_html=True)
