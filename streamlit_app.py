@@ -1,6 +1,8 @@
 import streamlit as st
 import yfinance as yf
+import pandas as pd
 import feedparser
+import urllib.parse
 from groq import Groq
 
 # ------------------------------------------------
@@ -10,46 +12,55 @@ from groq import Groq
 st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
 
 # ------------------------------------------------
-# CSS STYLE
+# PROFESSIONAL CSS
 # ------------------------------------------------
 
 st.markdown("""
 <style>
 
 .stApp{
-background-color:#f5f7fb;
+background-color:#f4f6f9;
 }
 
-/* headings */
+/* title */
 h1{
-color:teal !important;
+color:teal;
 text-align:center;
 font-size:42px;
+margin-bottom:10px;
 }
 
+/* section headings */
 h2,h3{
-color:teal !important;
+color:teal;
+margin-top:30px;
 }
 
-/* metric cards */
-[data-testid="stMetric"]{
+/* cards */
+.card{
 background:white;
-padding:14px;
-border-radius:10px;
-border-left:5px solid teal;
-box-shadow:0 2px 6px rgba(0,0,0,0.05);
+padding:16px;
+border-radius:12px;
+box-shadow:0 3px 8px rgba(0,0,0,0.08);
+margin-bottom:15px;
 }
 
-/* buttons */
-.stButton>button{
+/* table */
+thead tr th{
+background:#e6fffa;
+color:teal;
+font-weight:bold;
+}
+
+/* button */
+.stButton > button{
 background:teal;
 color:white;
 border-radius:8px;
-border:none;
-padding:8px 16px;
+padding:8px 18px;
 }
 
-/* news card */
+/* news cards */
 .news-card{
 background:white;
 padding:12px;
@@ -97,42 +108,63 @@ data = stock.history(period="max")
 price = data["Close"].iloc[-1]
 
 # ------------------------------------------------
-# GROWTH FUNCTION
+# GROWTH FUNCTION (DATE BASED)
 # ------------------------------------------------
 
-def calc_growth(days):
+def calc_growth(years=None, months=None, days=None):
 
-    if len(data) <= days:
-        days = len(data)-1
+    target = data.index[-1]
 
-    start = data["Close"].iloc[-days]
-    end = data["Close"].iloc[-1]
+    if years:
+        target = target - pd.DateOffset(years=years)
 
-    return round(((end-start)/start)*100,2)
+    if months:
+        target = target - pd.DateOffset(months=months)
+
+    if days:
+        target = target - pd.DateOffset(days=days)
+
+    past = data[data.index <= target]
+
+    if len(past) == 0:
+        return None
+
+    past_price = past["Close"].iloc[-1]
+
+    return round(((price-past_price)/past_price)*100,2)
 
 # ------------------------------------------------
-# GROWTH METRICS
+# GROWTH TABLE
 # ------------------------------------------------
 
 growth = {
-"Overall":calc_growth(len(data)-1),
-"15Y":calc_growth(252*15),
-"10Y":calc_growth(252*10),
-"5Y":calc_growth(252*5),
-"3Y":calc_growth(252*3),
-"1Y":calc_growth(252),
-"6M":calc_growth(126),
-"3M":calc_growth(63),
-"1W":calc_growth(5),
-"1D":calc_growth(1)
+"Overall": round(((price-data["Close"].iloc[0])/data["Close"].iloc[0])*100,2),
+"15 Years":calc_growth(years=15),
+"10 Years":calc_growth(years=10),
+"5 Years":calc_growth(years=5),
+"3 Years":calc_growth(years=3),
+"1 Year":calc_growth(years=1),
+"6 Months":calc_growth(months=6),
+"3 Months":calc_growth(months=3),
+"1 Week":calc_growth(days=7),
+"1 Day":calc_growth(days=1)
 }
+
+growth_table = pd.DataFrame(
+list(growth.items()),
+columns=["Period","Growth %"]
+)
 
 st.subheader("Growth Performance")
 
-cols = st.columns(len(growth))
+st.markdown('<div class="card">', unsafe_allow_html=True)
 
-for i,(k,v) in enumerate(growth.items()):
-    cols[i].metric(k,f"{v}%")
+st.dataframe(
+growth_table.style.format({"Growth %":"{:.2f}%"}),
+use_container_width=True
+)
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ------------------------------------------------
 # CURRENT PRICE
@@ -140,14 +172,15 @@ for i,(k,v) in enumerate(growth.items()):
 
 st.subheader("Current Price")
 
+st.markdown('<div class="card">', unsafe_allow_html=True)
+
 st.metric("Price",f"₹{price:,.2f}")
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ------------------------------------------------
 # NEWS
 # ------------------------------------------------
-
-import feedparser
-import urllib.parse
 
 st.subheader("Latest News")
 
@@ -157,13 +190,16 @@ news_url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN
 
 feed = feedparser.parse(news_url)
 
-news_text = ""
+news_text=""
 
 for entry in feed.entries[:5]:
 
-    st.markdown(f"**{entry.title}**")
-
-    st.write(entry.link)
+    st.markdown(f"""
+    <div class="news-card">
+    <b>{entry.title}</b><br>
+    <a href="{entry.link}" target="_blank">Read article</a>
+    </div>
+    """, unsafe_allow_html=True)
 
     news_text += entry.title + "\n"
 
@@ -178,7 +214,7 @@ if st.button("Run AI Analysis"):
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
     prompt=f"""
-    Analyze the stock {company}.
+    Analyze the stock {company}
 
     Current price: {price}
 
@@ -190,8 +226,8 @@ if st.button("Run AI Analysis"):
 
     Provide:
 
-    1. Investment Score (0-100)
-    2. News Sentiment (Positive/Neutral/Negative)
+    1. Investment score (0-100)
+    2. News sentiment
     3. Growth outlook
     4. Expected return next 12 months
     """
@@ -210,9 +246,9 @@ if st.button("Run AI Analysis"):
 st.markdown("""
 <hr>
 
-<div style="text-align:center;color:gray;">
+<div style="text-align:center;color:gray">
 
-<h3 style="color:teal;">Contact</h3>
+<h3 style="color:teal">Contact</h3>
 
 Ankit<br>
 📞 9616216095
