@@ -3,63 +3,55 @@ import yfinance as yf
 import pandas as pd
 from groq import Groq
 
-# -----------------------------------
+# ----------------------------------
 # PAGE CONFIG
-# -----------------------------------
+# ----------------------------------
 
 st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
 
-# -----------------------------------
-# CSS THEME
-# -----------------------------------
+# ----------------------------------
+# CSS STYLE
+# ----------------------------------
 
 st.markdown("""
 <style>
 
-.stApp {
+.stApp{
 background-color:#f5f7fb;
 }
 
-.header {
+.header{
 background-color:teal;
-padding:15px;
-text-align:center;
+padding:16px;
 color:white;
-font-size:28px;
+text-align:center;
+font-size:30px;
 font-weight:bold;
 border-radius:8px;
-margin-bottom:20px;
 }
 
-h1,h2,h3 {
+h1,h2,h3{
 color:teal;
 }
 
-p,div,span {
+p,div,span{
 color:#6b7280;
-}
-
-footer {
-text-align:center;
-color:gray;
-margin-top:40px;
-font-size:14px;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# -----------------------------------
+# ----------------------------------
 # HEADER
-# -----------------------------------
+# ----------------------------------
 
 st.markdown('<div class="header">AI Investor Dashboard</div>', unsafe_allow_html=True)
 
-st.write("Analyze companies, view growth performance, read news, and get AI investment insights.")
+st.write("Analyze stocks, growth performance, news, and AI insights.")
 
-# -----------------------------------
-# COMPANY DROPDOWN
-# -----------------------------------
+# ----------------------------------
+# COMPANY LIST
+# ----------------------------------
 
 companies = {
 "Reliance Industries":"RELIANCE.NS",
@@ -73,38 +65,38 @@ company = st.selectbox("Select Company", list(companies.keys()))
 
 ticker = companies[company]
 
-# -----------------------------------
+# ----------------------------------
 # STOCK DATA
-# -----------------------------------
+# ----------------------------------
 
 stock = yf.Ticker(ticker)
 
-data = stock.history(period="10y")
+data = stock.history(period="max")
 
 price = data["Close"].iloc[-1]
 
-# -----------------------------------
+# ----------------------------------
 # GROWTH FUNCTION
-# -----------------------------------
+# ----------------------------------
 
 def calc_growth(days):
 
-    if len(data) > days:
+    if len(data) <= days:
+        days = len(data)-1
 
-        old = data["Close"].iloc[-days]
-        new = data["Close"].iloc[-1]
+    start = data["Close"].iloc[-days]
+    end = data["Close"].iloc[-1]
 
-        return round(((new-old)/old)*100,2)
+    return round(((end-start)/start)*100,2)
 
-    return None
-
-# -----------------------------------
+# ----------------------------------
 # PERFORMANCE TABLE
-# -----------------------------------
+# ----------------------------------
 
 growth = {
+"Overall":calc_growth(len(data)-1),
+"15 Years":calc_growth(252*15),
 "10 Years":calc_growth(252*10),
-"7.5 Years":calc_growth(int(252*7.5)),
 "5 Years":calc_growth(252*5),
 "3 Years":calc_growth(252*3),
 "1 Year":calc_growth(252),
@@ -121,28 +113,33 @@ columns=["Period","Growth %"]
 
 st.subheader("Performance")
 
-st.table(table)
+st.dataframe(table,use_container_width=True)
 
-# -----------------------------------
+# ----------------------------------
 # CURRENT PRICE
-# -----------------------------------
+# ----------------------------------
 
-st.metric("Current Price", f"₹{price:,.2f}")
+st.metric("Current Price",f"₹{price:,.2f}")
 
-# -----------------------------------
+# ----------------------------------
 # NEWS
-# -----------------------------------
+# ----------------------------------
 
 st.subheader("Latest News")
 
 news = stock.news
 
+news_text=""
+
 if news:
 
     for item in news[:5]:
 
-        title = item.get("title","No title")
-        link = item.get("link","")
+        title=item.get("title","")
+
+        link=item.get("link","")
+
+        news_text += title + "\n"
 
         st.markdown(f"**{title}**")
 
@@ -153,29 +150,34 @@ else:
 
     st.write("No news available")
 
-# -----------------------------------
+# ----------------------------------
 # AI ANALYSIS
-# -----------------------------------
+# ----------------------------------
 
-st.subheader("AI Investment Insight")
+st.subheader("AI Analysis")
 
-if st.button("Generate AI Analysis"):
+if st.button("Run AI Analysis"):
 
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-    prompt = f"""
-    Analyze the stock {company}
+    prompt=f"""
+    Analyze the stock {company}.
 
     Current Price: {price}
 
-    Growth Performance:
+    Growth performance:
     {growth}
 
+    News:
+    {news_text}
+
     Provide:
-    - company overview
-    - strengths and risks
-    - future outlook
-    - recommendation (Buy/Hold/Sell)
+
+    1. AI Investment Score (0-100)
+    2. News Sentiment (Positive/Neutral/Negative)
+    3. Short explanation of sentiment
+    4. Growth outlook (Bullish/Moderate/Bearish)
+    5. Expected growth next 12 months (%)
     """
 
     chat = client.chat.completions.create(
@@ -187,14 +189,14 @@ if st.button("Generate AI Analysis"):
 
     st.write(result)
 
-# -----------------------------------
+# ----------------------------------
 # FOOTER
-# -----------------------------------
+# ----------------------------------
 
 st.markdown("""
 <hr>
-<footer>
+<div style="text-align:center;color:gray;">
 AI Investor Dashboard<br>
 Contact: <b>9616216095</b>
-</footer>
+</div>
 """, unsafe_allow_html=True)
