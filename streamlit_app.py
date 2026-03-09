@@ -146,22 +146,24 @@ st.metric("Price",f"₹{price:,.2f}")
 # NEWS
 # ------------------------------------------------
 
+import feedparser
+import urllib.parse
+
 st.subheader("Latest News")
 
-news_url = f"https://news.google.com/rss/search?q={company}+stock"
+query = urllib.parse.quote(company + " stock")
+
+news_url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
 
 feed = feedparser.parse(news_url)
 
-news_text=""
+news_text = ""
 
 for entry in feed.entries[:5]:
 
-    st.markdown(f"""
-    <div class="news-card">
-    <b>{entry.title}</b><br>
-    <a href="{entry.link}" target="_blank">Read full article</a>
-    </div>
-    """,unsafe_allow_html=True)
+    st.markdown(f"**{entry.title}**")
+
+    st.write(entry.link)
 
     news_text += entry.title + "\n"
 
