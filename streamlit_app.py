@@ -287,6 +287,7 @@ if st.button("🚀 Analyze Companies"):
         st.subheader("AI Investment Insight")
 
         st.write(insight)
+        
 st.markdown("""
 <hr>
 
@@ -296,5 +297,8 @@ st.markdown("""
 
 Ankit<br>
 📞 9616216095
+
+</div>
+""", unsafe_allow_html=True)
 
 </div>
