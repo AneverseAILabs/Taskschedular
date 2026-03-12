@@ -11,7 +11,100 @@ from groq import Groq
 # =========================
 
 st.set_page_config(page_title="AI Investment Dashboard", layout="wide")
+st.markdown("""
+<style>
 
+/* APP BACKGROUND */
+.stApp{
+background-color:#f6f8fb;
+}
+
+/* HEADINGS */
+h1{
+color:#2e8b57;
+font-weight:700;
+}
+
+h2,h3,h4{
+color:#6a5acd;
+font-weight:600;
+}
+
+/* TEXT */
+p,div,span,label{
+color:#6b7280;
+}
+
+/* CARD STYLE */
+.card{
+background:white;
+padding:22px;
+border-radius:14px;
+box-shadow:0 4px 14px rgba(0,0,0,0.06);
+margin-bottom:20px;
+}
+
+/* BUTTON */
+.stButton>button{
+background:#2e8b57;
+color:white;
+border-radius:10px;
+padding:10px 20px;
+border:none;
+font-weight:500;
+}
+
+.stButton>button:hover{
+background:#6a5acd;
+color:white;
+}
+
+/* METRIC BOX */
+[data-testid="stMetric"]{
+background:white;
+padding:18px;
+border-radius:12px;
+box-shadow:0 3px 10px rgba(0,0,0,0.05);
+border-left:5px solid #2e8b57;
+}
+
+/* NEWS CARD */
+.news-card{
+background:white;
+padding:15px;
+border-radius:12px;
+margin-bottom:12px;
+border-left:5px solid #6a5acd;
+box-shadow:0 2px 6px rgba(0,0,0,0.05);
+}
+
+/* TABLE HEADER */
+thead tr th{
+background:#f0f9f6;
+color:#2e8b57;
+font-weight:600;
+}
+
+/* SELECTBOX */
+div[data-baseweb="select"]{
+background:white;
+border-radius:10px;
+}
+
+/* SEARCH BOX */
+input{
+border-radius:10px !important;
+}
+
+/* CHART COLOR */
+[data-testid="stLineChart"]{
+background:white;
+border-radius:12px;
+padding:10px;
+}
+
+</style>
+""", unsafe_allow_html=True)
 # =========================
 # GROQ CLIENT
 # =========================
@@ -193,3 +286,14 @@ if st.button("🚀 Analyze Companies"):
         st.subheader("AI Investment Insight")
 
         st.write(insight)
+st.markdown("""
+<hr>
+
+<div style="text-align:center;color:gray">
+
+<h3 style="color:teal">Contact</h3>
+
+Ankit<br>
+📞 9616216095
+
+</div>
