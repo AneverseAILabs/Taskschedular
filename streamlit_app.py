@@ -2,7 +2,7 @@ import streamlit as st
 import feedparser
 import urllib.parse
 import yfinance as yf
-import pandas as pd
+import pandas as pd 
 from datetime import datetime, timedelta
 from groq import Groq
 
@@ -13,6 +13,7 @@ from groq import Groq
 st.set_page_config(page_title="AI Investment Dashboard", layout="wide")
 st.markdown("""
 <style>
+
 
 /* APP BACKGROUND */
 .stApp{
