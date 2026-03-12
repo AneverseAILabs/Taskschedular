@@ -324,3 +324,15 @@ Confidence score
     st.subheader("🤖 AI Investment Insight")
 
     st.write(completion.choices[0].message.content)
+st.markdown("""
+<hr>
+
+<div style="text-align:center;color:gray">
+
+<h3 style="color:teal">Contact</h3>
+
+Ankit<br>
+📞 9616216095
+
+</div>
+""", unsafe_allow_html=True)
