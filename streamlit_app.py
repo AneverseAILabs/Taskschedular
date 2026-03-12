@@ -1,251 +1,195 @@
 import streamlit as st
-import yfinance as yf
-import pandas as pd
 import feedparser
 import urllib.parse
+import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
 from groq import Groq
 
-# --------------------------------
+# =========================
 # PAGE CONFIG
-# --------------------------------
+# =========================
 
-st.set_page_config(page_title="AI Investor Dashboard", layout="wide")
+st.set_page_config(page_title="AI Investment Dashboard", layout="wide")
 
-# --------------------------------
-# UI STYLE
-# --------------------------------
+# =========================
+# GROQ CLIENT
+# =========================
 
-st.markdown("""
-<style>
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-.stApp{
-background-color:#f4f6f9;
+# =========================
+# COMPANY DATA
+# =========================
+
+SECTOR_COMPANIES = {
+
+"Technology":["TCS","Infosys","Wipro","HCLTech","Tech Mahindra","LTIMindtree","Mphasis","Coforge","Persistent Systems","Oracle Financial"],
+
+"Banking":["HDFC Bank","ICICI Bank","SBI","Axis Bank","Kotak Bank","IndusInd Bank","Bank of Baroda","PNB","Canara Bank","Union Bank"],
+
+"Energy":["Reliance Industries","ONGC","NTPC","Power Grid","Adani Green","Adani Power","Coal India","IOC","BPCL","GAIL"],
+
+"Pharma":["Sun Pharma","Dr Reddy","Cipla","Divis Labs","Biocon","Lupin","Aurobindo Pharma","Torrent Pharma","Alkem Labs","Zydus"],
+
+"Automobile":["Maruti Suzuki","Tata Motors","Mahindra","Bajaj Auto","Hero MotoCorp","Eicher Motors","TVS Motor","Ashok Leyland","Bharat Forge","Motherson"],
+
+"FMCG":["HUL","ITC","Nestle India","Britannia","Dabur","Marico","Tata Consumer","Godrej Consumer","Colgate","Emami"],
+
+"Metals":["Tata Steel","JSW Steel","Hindalco","Vedanta","NMDC","SAIL","Jindal Steel","Hindustan Zinc","NALCO","APL Apollo"]
 }
 
-/* headings */
-h1,h2,h3,h4{
-color:teal !important;
-}
+# =========================
+# UI
+# =========================
 
-/* normal text */
-p,div,span,label{
-color:#6b7280 !important;
-}
+st.title("📊 AI Investment Intelligence Dashboard")
 
-/* cards */
-.card{
-background:white;
-padding:16px;
-border-radius:12px;
-box-shadow:0 3px 8px rgba(0,0,0,0.08);
-margin-bottom:15px;
-}
+col1, col2 = st.columns([3,1])
 
-/* table header */
-thead tr th{
-background:#e6fffa;
-color:teal;
-}
+with col1:
+    sector = st.selectbox("Select Sector", list(SECTOR_COMPANIES.keys()))
 
-/* buttons */
-.stButton>button{
-background:teal;
-color:white;
-border-radius:8px;
-padding:8px 18px;
-}
+with col2:
+    search = st.text_input("Search Company")
 
-/* news card */
-.news-card{
-background:white;
-padding:12px;
-border-radius:10px;
-border-left:5px solid teal;
-margin-bottom:10px;
-box-shadow:0 2px 6px rgba(0,0,0,0.05);
-}
+companies = SECTOR_COMPANIES[sector]
 
-</style>
-""", unsafe_allow_html=True)
+if search:
+    companies = [c for c in companies if search.lower() in c.lower()]
 
-# --------------------------------
-# HEADER
-# --------------------------------
+selected = st.multiselect(
+    "Select Companies",
+    companies,
+    default=companies[:3]
+)
 
-st.title("AI Investor Dashboard")
+# =========================
+# FETCH NEWS
+# =========================
 
-st.write("Analyze company growth, news and AI investment insights.")
+@st.cache_data(ttl=3600)
+def fetch_news(company):
 
-# --------------------------------
-# COMPANY SELECT
-# --------------------------------
+    query = urllib.parse.quote(company + " stock")
+    url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
 
-companies = {
-"Reliance Industries":"RELIANCE.NS",
-"TCS":"TCS.NS",
-"Infosys":"INFY.NS",
-"HDFC Bank":"HDFCBANK.NS",
-"ICICI Bank":"ICICIBANK.NS"
-}
+    feed = feedparser.parse(url)
 
-company = st.selectbox("Select Company", list(companies.keys()))
+    headlines = []
+    cutoff = datetime.now() - timedelta(hours=48)
 
-ticker = companies[company]
+    for entry in feed.entries:
 
-# --------------------------------
+        if hasattr(entry,"published_parsed") and entry.published_parsed:
+
+            published = datetime(*entry.published_parsed[:6])
+
+            if published >= cutoff:
+                headlines.append(entry.title)
+
+    return headlines[:10]
+
+# =========================
 # STOCK DATA
-# --------------------------------
+# =========================
 
-stock = yf.Ticker(ticker)
+@st.cache_data(ttl=3600)
+def get_stock(company):
 
-data = stock.history(period="max")
-
-price = data["Close"].iloc[-1]
-
-# --------------------------------
-# GROWTH FUNCTION
-# --------------------------------
-
-def calc_growth(years=None, months=None, days=None):
-
-    target = data.index[-1]
-
-    if years:
-        target = target - pd.DateOffset(years=years)
-
-    if months:
-        target = target - pd.DateOffset(months=months)
-
-    if days:
-        target = target - pd.DateOffset(days=days)
-
-    past = data[data.index <= target]
-
-    if len(past)==0:
+    try:
+        ticker = yf.Ticker(company.replace(" ","")+".NS")
+        df = ticker.history(period="6mo")
+        return df
+    except:
         return None
 
-    past_price = past["Close"].iloc[-1]
+# =========================
+# GROQ AI ANALYSIS
+# =========================
 
-    return round(((price-past_price)/past_price)*100,2)
+def ai_analysis(company,news):
 
-# --------------------------------
-# GROWTH TABLE
-# --------------------------------
+    text = "\n".join(news)
 
-growth = {
-"Overall": round(((price-data['Close'].iloc[0])/data['Close'].iloc[0])*100,2),
-"15 Years":calc_growth(years=15),
-"10 Years":calc_growth(years=10),
-"5 Years":calc_growth(years=5),
-"3 Years":calc_growth(years=3),
-"1 Year":calc_growth(years=1),
-"6 Months":calc_growth(months=6),
-"3 Months":calc_growth(months=3),
-"1 Week":calc_growth(days=7),
-"1 Day":calc_growth(days=1)
-}
+    prompt = f"""
+Analyze these headlines for {company}.
 
-growth_table = pd.DataFrame(
-list(growth.items()),
-columns=["Period","Growth %"]
-)
+Return structured output:
 
-st.subheader("Growth Performance")
+Sentiment
+Growth Signals
+Risk Signals
+Investment Summary
+Confidence Score (1-10)
 
-st.markdown('<div class="card">', unsafe_allow_html=True)
+Headlines:
+{text}
+"""
 
-st.dataframe(
-growth_table.style.format({"Growth %":"{:.2f}%"}),
-use_container_width=True
-)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --------------------------------
-# CURRENT PRICE
-# --------------------------------
-
-st.subheader("Current Price")
-
-st.markdown('<div class="card">', unsafe_allow_html=True)
-
-st.metric("Price",f"₹{price:,.2f}")
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --------------------------------
-# NEWS
-# --------------------------------
-
-st.subheader("Latest News")
-
-query = urllib.parse.quote(company + " stock")
-
-news_url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
-
-feed = feedparser.parse(news_url)
-
-news_text=""
-
-for entry in feed.entries[:5]:
-
-    st.markdown(f"""
-    <div class="news-card">
-    <b>{entry.title}</b><br>
-    <a href="{entry.link}" target="_blank">Read article</a>
-    </div>
-    """, unsafe_allow_html=True)
-
-    news_text += entry.title + "\n"
-
-# --------------------------------
-# AI ANALYSIS
-# --------------------------------
-
-st.subheader("AI Analysis")
-
-if st.button("Run AI Analysis"):
-
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-
-    prompt=f"""
-    Analyze the stock {company}
-
-    Current price: {price}
-
-    Growth:
-    {growth}
-
-    News:
-    {news_text}
-
-    Provide:
-    1. Investment score (0-100)
-    2. News sentiment
-    3. Growth outlook
-    4. Expected return next 12 months
-    """
-
-    chat = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[{"role":"user","content":prompt}]
+    completion = client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[
+            {"role":"system","content":"You are a professional stock market analyst."},
+            {"role":"user","content":prompt}
+        ],
+        temperature=0.3
     )
 
-    st.write(chat.choices[0].message.content)
+    return completion.choices[0].message.content
 
-# --------------------------------
-# CONTACT
-# --------------------------------
+# =========================
+# ANALYZE
+# =========================
 
-st.markdown("""
-<hr>
+if st.button("🚀 Analyze Companies"):
 
-<div style="text-align:center;color:gray">
+    for company in selected:
 
-<h3 style="color:teal">Contact</h3>
+        st.markdown("---")
+        st.header(company)
 
-Ankit<br>
-📞 9616216095
+        col1,col2 = st.columns([2,1])
 
-</div>
-""", unsafe_allow_html=True)
+        # STOCK CHART
+        with col1:
+
+            df = get_stock(company)
+
+            if df is not None and not df.empty:
+                st.line_chart(df["Close"])
+            else:
+                st.write("Stock data unavailable")
+
+        # PRICE METRIC
+        with col2:
+
+            if df is not None and not df.empty:
+
+                latest = df["Close"].iloc[-1]
+                prev = df["Close"].iloc[-2]
+
+                change = ((latest-prev)/prev)*100
+
+                st.metric("Price", round(latest,2), str(round(change,2))+"%")
+
+        # NEWS
+        st.subheader("Latest News")
+
+        news = fetch_news(company)
+
+        if not news:
+            st.write("No recent news")
+            continue
+
+        for n in news:
+            st.write("•", n)
+
+        # AI ANALYSIS
+        with st.spinner("AI analyzing investment signals..."):
+
+            insight = ai_analysis(company,news)
+
+        st.subheader("AI Investment Insight")
+
+        st.write(insight)
