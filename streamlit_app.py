@@ -1,378 +1,399 @@
+```python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import feedparser
 import urllib.parse
 from datetime import datetime, timedelta
 from groq import Groq
-import ta
 
-# =====================
+# ======================
 # PAGE CONFIG
-# =====================
+# ======================
 
-st.set_page_config(page_title="AI Investment Dashboard", layout="wide")
+st.set_page_config(page_title="AI Investment Intelligence", layout="wide")
 
-# =====================
-# CSS THEME
-# =====================
+# ======================
+# UI THEME
+# ======================
 
 st.markdown("""
 <style>
 
 .stApp{
-background:#f4f6fb;
-font-family:Arial;
+background:#f7fafc;
 }
 
 h1,h2,h3,h4{
 color:gray;
 }
 
-.metric-box{
-background:white;
-padding:20px;
-border-radius:14px;
-border-left:6px solid seagreen;
-text-align:center;
-box-shadow:0 6px 20px rgba(0,0,0,0.06);
-}
-
-.news-card{
-background:white;
-padding:14px;
-border-radius:12px;
-border-left:5px solid indigo;
-margin-bottom:10px;
-box-shadow:0 6px 18px rgba(0,0,0,0.06);
-}
-
 .stButton>button{
 background:indigo;
 color:white;
 border-radius:8px;
-padding:8px 22px;
+padding:8px 20px;
 }
 
 .stButton>button:hover{
 background:seagreen;
 }
 
+.news-card{
+background:white;
+padding:12px;
+border-radius:10px;
+border-left:5px solid indigo;
+margin-bottom:10px;
+box-shadow:0px 4px 10px rgba(0,0,0,0.08);
+}
+
+.metric-card{
+background:white;
+padding:16px;
+border-radius:10px;
+border-left:5px solid seagreen;
+text-align:center;
+box-shadow:0px 4px 10px rgba(0,0,0,0.08);
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-# =====================
+# ======================
 # GROQ CLIENT
-# =====================
+# ======================
 
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# =====================
-# SIDEBAR
-# =====================
-
-with st.sidebar:
-
-    st.title("AI Investment")
-
-    page = st.radio(
-        "Navigation",
-        [
-            "Market Overview",
-            "Sector Performance",
-            "Company Analysis",
-            "Market News"
-        ]
-    )
-
-# =====================
-# MARKET OVERVIEW
-# =====================
-
-def metric(symbol):
-
-    df = yf.Ticker(symbol).history(period="5d")
-
-    latest = df["Close"].iloc[-1]
-    prev = df["Close"].iloc[-2]
-
-    change = ((latest-prev)/prev)*100
-
-    return round(latest,2), round(change,2)
-
-
-if page == "Market Overview":
-
-    st.title("Market Overview")
-
-    col1,col2,col3 = st.columns(3)
-
-    p,c = metric("^NSEI")
-    p2,c2 = metric("^BSESN")
-    p3,c3 = metric("^NSEBANK")
-
-    with col1:
-        st.markdown(f"""
-        <div class="metric-box">
-        <h3>NIFTY 50</h3>
-        <h2>{p}</h2>
-        <p>{c}%</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown(f"""
-        <div class="metric-box">
-        <h3>SENSEX</h3>
-        <h2>{p2}</h2>
-        <p>{c2}%</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col3:
-        st.markdown(f"""
-        <div class="metric-box">
-        <h3>BANK NIFTY</h3>
-        <h2>{p3}</h2>
-        <p>{c3}%</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.subheader("Index Trend")
-
-    index_data = yf.download(
-        ["^NSEI","^BSESN"],
-        period="6mo",
-        progress=False
-    )["Close"]
-
-    df = index_data.reset_index().melt(
-        id_vars="Date",
-        var_name="Index",
-        value_name="Price"
-    )
-
-    fig = px.line(
-        df,
-        x="Date",
-        y="Price",
-        color="Index"
-    )
-
-    st.plotly_chart(fig,use_container_width=True)
-
-# =====================
-# SECTOR PERFORMANCE
-# =====================
+# ======================
+# SECTOR DATA
+# ======================
 
 SECTOR_COMPANIES = {
 
-"Technology":["TCS","Infosys","Wipro"],
+"Technology":["TCS","Infosys","Wipro","HCLTech","Tech Mahindra"],
 
-"Banking":["HDFC Bank","ICICI Bank","SBI"],
+"Banking":["HDFC Bank","ICICI Bank","SBI","Axis Bank","Kotak Bank"],
 
-"Energy":["Reliance Industries","ONGC","NTPC"],
+"Energy":["Reliance Industries","ONGC","NTPC","Power Grid","Coal India"],
 
-"Pharma":["Sun Pharma","Dr Reddy","Cipla"],
+"Pharma":["Sun Pharma","Dr Reddy","Cipla","Divis Labs","Biocon"],
 
-"Automobile":["Maruti Suzuki","Tata Motors","Mahindra"]
+"Automobile":["Maruti Suzuki","Tata Motors","Mahindra","Bajaj Auto","Hero MotoCorp"],
+
+"FMCG":["HUL","ITC","Nestle India","Britannia","Dabur"],
+
+"Metals":["Tata Steel","JSW Steel","Hindalco","Vedanta","SAIL"]
 
 }
 
-if page == "Sector Performance":
+# ======================
+# TITLE
+# ======================
 
-    st.title("Sector Performance")
+st.title("📊 AI Investment Intelligence Dashboard")
 
-    sector_data={}
+# ======================
+# MARKET OVERVIEW
+# ======================
 
-    for sector in SECTOR_COMPANIES:
+st.subheader("Market Overview")
 
-        stocks=SECTOR_COMPANIES[sector]
+col1,col2,col3 = st.columns(3)
 
-        changes=[]
+def metric(symbol):
 
-        for s in stocks:
+    try:
 
-            df=yf.Ticker(s.replace(" ","")+".NS").history(period="2d")
+        df = yf.Ticker(symbol).history(period="5d")
 
-            latest=df["Close"].iloc[-1]
-            prev=df["Close"].iloc[-2]
+        latest = df["Close"].iloc[-1]
+        prev = df["Close"].iloc[-2]
 
-            change=((latest-prev)/prev)*100
+        change = ((latest-prev)/prev)*100
 
-            changes.append(change)
+        return round(latest,2), round(change,2)
 
-        sector_data[sector]=round(sum(changes)/len(changes),2)
+    except:
 
-    sector_df=pd.DataFrame(
-        list(sector_data.items()),
-        columns=["Sector","Change %"]
-    )
+        return "NA","NA"
 
-    st.dataframe(sector_df)
+with col1:
 
-    fig = px.bar(
-        sector_df,
-        x="Sector",
-        y="Change %",
-        color="Change %",
-        color_continuous_scale="Viridis"
-    )
+    p,c = metric("^NSEI")
 
-    st.plotly_chart(fig,use_container_width=True)
+    st.markdown(f"""
+    <div class="metric-card">
+    <h3>NIFTY 50</h3>
+    <h2>{p}</h2>
+    <p>{c}%</p>
+    </div>
+    """,unsafe_allow_html=True)
 
-# =====================
-# COMPANY ANALYSIS
-# =====================
+with col2:
 
-if page == "Company Analysis":
+    p,c = metric("^BSESN")
 
-    st.title("Company Technical Analysis")
+    st.markdown(f"""
+    <div class="metric-card">
+    <h3>SENSEX</h3>
+    <h2>{p}</h2>
+    <p>{c}%</p>
+    </div>
+    """,unsafe_allow_html=True)
 
-    sector = st.selectbox(
-        "Select Sector",
-        list(SECTOR_COMPANIES.keys())
-    )
+with col3:
 
-    company = st.selectbox(
-        "Select Company",
-        SECTOR_COMPANIES[sector]
-    )
+    p,c = metric("^NSEBANK")
 
-    df = yf.Ticker(
-        company.replace(" ","")+".NS"
-    ).history(period="2y")
+    st.markdown(f"""
+    <div class="metric-card">
+    <h3>BANK NIFTY</h3>
+    <h2>{p}</h2>
+    <p>{c}%</p>
+    </div>
+    """,unsafe_allow_html=True)
 
-    df["RSI"]=ta.momentum.RSIIndicator(df["Close"]).rsi()
+# ======================
+# TOP GAINERS LOSERS
+# ======================
 
-    df["SMA50"]=ta.trend.sma_indicator(df["Close"],50)
+st.subheader("Top Gainers & Losers")
 
-    st.subheader("Price Trend")
+tickers = ["RELIANCE.NS","TCS.NS","INFY.NS","HDFCBANK.NS","ICICIBANK.NS"]
 
-    fig = go.Figure()
+data = yf.download(tickers,period="2d",progress=False)
 
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["Close"],
-        name="Price",
-        line=dict(color="seagreen")
-    ))
+changes = {}
 
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["SMA50"],
-        name="SMA50",
-        line=dict(color="indigo")
-    ))
+for t in tickers:
 
-    st.plotly_chart(fig,use_container_width=True)
+    close = data["Close"][t]
 
-    st.subheader("RSI Indicator")
+    change = ((close.iloc[-1]-close.iloc[-2])/close.iloc[-2])*100
 
-    fig = go.Figure()
+    changes[t] = round(change,2)
 
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["RSI"],
-        name="RSI",
-        line=dict(color="gray")
-    ))
+df = pd.DataFrame(list(changes.items()),columns=["Stock","Change %"])
 
-    fig.add_hline(y=70)
-    fig.add_hline(y=30)
+col1,col2 = st.columns(2)
 
-    st.plotly_chart(fig,use_container_width=True)
+with col1:
+    st.write("📈 Gainers")
+    st.dataframe(df.sort_values("Change %",ascending=False))
 
-    latest=df.iloc[-1]
+with col2:
+    st.write("📉 Losers")
+    st.dataframe(df.sort_values("Change %"))
 
-    indicators=pd.DataFrame({
+# ======================
+# SECTOR PERFORMANCE
+# ======================
 
-        "Indicator":[
-            "RSI",
-            "SMA50"
-        ],
+st.subheader("Sector Performance Summary")
 
-        "Value":[
-            round(latest["RSI"],2),
-            round(latest["SMA50"],2)
-        ]
+sector_data = {}
 
-    })
+for sector in SECTOR_COMPANIES:
 
-    st.subheader("Indicator Data")
+    stocks = SECTOR_COMPANIES[sector][:3]
 
-    st.dataframe(indicators)
+    change_list = []
 
-# =====================
-# NEWS
-# =====================
+    for s in stocks:
 
-def fetch_news(topic):
+        try:
 
-    query=urllib.parse.quote(topic)
+            df = yf.Ticker(s.replace(" ","")+".NS").history(period="2d")
 
-    url=f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+            latest = df["Close"].iloc[-1]
+            prev = df["Close"].iloc[-2]
 
-    feed=feedparser.parse(url)
+            change = ((latest-prev)/prev)*100
 
-    return [e.title for e in feed.entries[:10]]
+            change_list.append(change)
 
-if page == "Market News":
+        except:
+            pass
 
-    st.title("Market News")
+    if change_list:
+        sector_data[sector] = round(sum(change_list)/len(change_list),2)
 
-    news=fetch_news("Indian stock market")
+sector_df = pd.DataFrame(list(sector_data.items()),columns=["Sector","Change %"])
 
-    for n in news:
+st.dataframe(sector_df)
 
-        st.markdown(f"""
-        <div class="news-card">
-        {n}
-        </div>
-        """, unsafe_allow_html=True)
+# ======================
+# NEWS FUNCTION
+# ======================
 
-    st.subheader("AI Market Sentiment")
+@st.cache_data(ttl=3600)
+def fetch_news(company):
 
-    text="\n".join(news)
+    query = urllib.parse.quote(company+" stock")
 
-    prompt=f"""
-Analyze Indian stock market sentiment.
+    url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+
+    feed = feedparser.parse(url)
+
+    headlines = []
+
+    cutoff = datetime.now()-timedelta(hours=48)
+
+    for entry in feed.entries:
+
+        if hasattr(entry,"published_parsed"):
+
+            published = datetime(*entry.published_parsed[:6])
+
+            if published >= cutoff:
+                headlines.append(entry.title)
+
+    return headlines[:10]
+
+# ======================
+# MARKET NEWS
+# ======================
+
+st.subheader("Market News")
+
+market_news = fetch_news("Indian stock market")
+
+for n in market_news:
+
+    st.markdown(f"""
+    <div class="news-card">
+    {n}
+    </div>
+    """,unsafe_allow_html=True)
+
+# ======================
+# NEWS SENTIMENT MODEL
+# ======================
+
+def analyze_news_sentiment(headlines):
+
+    text = "\n".join(headlines)
+
+    prompt = f"""
+Analyze sentiment of these news headlines.
 
 Return:
-Market Sentiment
-Key Drivers
-Short Outlook
+
+Market Sentiment (Bullish / Neutral / Bearish)
+Sentiment Score (-1 to 1)
+Confidence (0-100)
+Key Reasons
+
+Headlines:
+{text}
 """
 
-    completion=client.chat.completions.create(
+    completion = client.chat.completions.create(
 
         model="llama-3.1-8b-instant",
 
         messages=[
-            {"role":"system","content":"You are a financial strategist."},
+            {"role":"system","content":"You are a financial sentiment analyst."},
             {"role":"user","content":prompt}
         ]
-
     )
 
-    st.write(completion.choices[0].message.content)
+    return completion.choices[0].message.content
 
-# =====================
+st.subheader("🧠 AI Market Sentiment")
+
+sentiment = analyze_news_sentiment(market_news)
+
+st.write(sentiment)
+
+# ======================
+# COMPANY ANALYSIS
+# ======================
+
+st.subheader("Company Analysis")
+
+sector = st.selectbox("Select Sector",list(SECTOR_COMPANIES.keys()))
+
+companies = SECTOR_COMPANIES[sector]
+
+company = st.selectbox("Select Company",companies)
+
+# ======================
+# AI INVESTMENT ENGINE
+# ======================
+
+def ai_investment_recommendation(company, news):
+
+    news_text = "\n".join(news)
+
+    prompt = f"""
+You are a professional equity analyst.
+
+Analyze the investment potential of this company.
+
+Company: {company}
+
+Recent News:
+{news_text}
+
+Return:
+
+Investment Rating (Strong Buy / Buy / Hold / Sell)
+
+Entry Strategy
+
+Growth Drivers
+
+Risk Factors
+
+Short Term Outlook
+
+Long Term Outlook
+
+Confidence Score (0-100)
+"""
+
+    completion = client.chat.completions.create(
+
+        model="llama-3.1-8b-instant",
+
+        messages=[
+            {"role":"system","content":"You are a senior equity research analyst."},
+            {"role":"user","content":prompt}
+        ]
+    )
+
+    return completion.choices[0].message.content
+
+if st.button("Analyze Company"):
+
+    news = fetch_news(company)
+
+    st.subheader("Company News")
+
+    for n in news:
+        st.write("•",n)
+
+    recommendation = ai_investment_recommendation(company, news)
+
+    st.subheader("🤖 AI Investment Recommendation")
+
+    st.write(recommendation)
+
+# ======================
 # FOOTER
-# =====================
+# ======================
 
 st.markdown("""
+<hr>
 
----
+<div style="text-align:center;color:gray">
 
-<center style="color:gray">
+This dashboard provides informational insights only.<br>
+Not financial advice. Invest at your own risk.
 
-AI Investment Intelligence Dashboard
-
-Built with Python • Streamlit • AI
-
-</center>
-
+</div>
 """, unsafe_allow_html=True)
+```
