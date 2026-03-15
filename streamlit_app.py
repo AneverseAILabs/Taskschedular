@@ -1,4 +1,4 @@
-```python
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -396,4 +396,4 @@ Not financial advice. Invest at your own risk.
 
 </div>
 """, unsafe_allow_html=True)
-```
+
