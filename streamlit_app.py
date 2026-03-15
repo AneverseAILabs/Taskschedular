@@ -37,7 +37,7 @@ color:#6b7280;
 }
 
 .stButton>button{
-background:#ffff;
+background:#6a5acd;
 color:white;
 border-radius:10px;
 padding:8px 20px;
