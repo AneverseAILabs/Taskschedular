@@ -16,7 +16,6 @@ st.set_page_config(page_title="AI Investment Dashboard", layout="wide")
 # UI THEME
 # ======================
 
-
 st.markdown("""
 <style>
 
@@ -101,14 +100,18 @@ col1,col2,col3 = st.columns(3)
 
 def metric(symbol):
 
-    df = yf.Ticker(symbol).history(period="5d")
+    try:
+        df = yf.Ticker(symbol).history(period="5d")
 
-    latest = df["Close"].iloc[-1]
-    prev = df["Close"].iloc[-2]
+        latest = df["Close"].iloc[-1]
+        prev = df["Close"].iloc[-2]
 
-    change = ((latest-prev)/prev)*100
+        change = ((latest-prev)/prev)*100
 
-    return round(latest,2), round(change,2)
+        return round(latest,2), round(change,2)
+
+    except:
+        return "NA","NA"
 
 with col1:
     p,c = metric("^NSEI")
@@ -190,6 +193,8 @@ for sector in SECTOR_COMPANIES:
 sector_df=pd.DataFrame(list(sector_data.items()),columns=["Sector","Change %"])
 
 st.dataframe(sector_df)
+
+st.bar_chart(sector_df.set_index("Sector"))
 
 # ======================
 # NEWS FUNCTION
@@ -283,47 +288,83 @@ companies=SECTOR_COMPANIES[sector]
 
 company=st.selectbox("Select Company",companies)
 
+duration = st.selectbox(
+    "Chart Duration",
+    ["1 Month","3 Months","6 Months","1 Year","5 Years","10 Years"]
+)
+
+duration_map = {
+    "1 Month":"1mo",
+    "3 Months":"3mo",
+    "6 Months":"6mo",
+    "1 Year":"1y",
+    "5 Years":"5y",
+    "10 Years":"10y"
+}
+
+period = duration_map[duration]
+
 if st.button("Analyze Company"):
 
-    df=yf.Ticker(company.replace(" ","")+".NS").history()
+    with st.spinner("Analyzing company..."):
 
-    st.line_chart(df["Close"])
+        df=yf.Ticker(company.replace(" ","")+".NS").history(period=period)
 
-    news=fetch_news(company)
+        df["MA50"]=df["Close"].rolling(50).mean()
+        df["MA200"]=df["Close"].rolling(200).mean()
 
-    st.subheader("Company News")
+        st.subheader(f"{company} Price Trend")
 
-    for n in news:
-        st.write("•",n)
+        st.line_chart(df[["Close","MA50","MA200"]])
 
-    text="\n".join(news)
+        news=fetch_news(company)
 
-    prompt=f"""
+        st.subheader("Company News")
+
+        for n in news:
+            st.write("•",n)
+
+        text="\n".join(news)
+
+        prompt=f"""
 Analyze investment outlook for {company}.
 
-Return:
+Return structured output:
 
-Sentiment
-Growth signals
-Risk factors
-Investment summary
-Confidence score
+Sentiment (Bullish/Neutral/Bearish)
+
+Growth Drivers
+
+Risk Factors
+
+Short Term Outlook
+
+Long Term Outlook
+
+Investment Summary
+
+Confidence Score (0-100)
 """
 
-    completion=client.chat.completions.create(
+        completion=client.chat.completions.create(
 
-        model="llama-3.1-8b-instant",
+            model="llama-3.1-8b-instant",
 
-        messages=[
-            {"role":"system","content":"You are a stock analyst."},
-            {"role":"user","content":prompt}
-        ]
+            messages=[
+                {"role":"system","content":"You are a stock analyst."},
+                {"role":"user","content":prompt}
+            ]
 
-    )
+        )
 
-    st.subheader("🤖 AI Investment Insight")
+        st.subheader("🤖 AI Investment Insight")
 
-    st.write(completion.choices[0].message.content)
+        st.write(completion.choices[0].message.content)
+
+# ======================
+# FOOTER
+# ======================
+
 st.markdown("""
 <hr>
 
