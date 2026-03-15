@@ -1,4 +1,4 @@
-```python
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -397,4 +397,4 @@ with tab6:
 Feel free to reach out for collaboration or questions regarding the AI Investment Dashboard.
 
 """)
-```
+
