@@ -285,7 +285,7 @@ company=st.selectbox("Select Company",companies)
 
 if st.button("Analyze Company"):
 
-    df=yf.Ticker(company.replace(" ","")+".NS").history(period="6mo")
+    df=yf.Ticker(company.replace(" ","")+".NS").history()
 
     st.line_chart(df["Close"])
 
