@@ -6,11 +6,13 @@ import urllib.parse
 from datetime import datetime, timedelta
 from groq import Groq
 
+
 # ======================
 # PAGE CONFIG
 # ======================
 
 st.set_page_config(page_title="AI Investment Dashboard", layout="wide")
+
 
 # ======================
 # UI THEME
@@ -25,7 +27,6 @@ background:#f6f9fb;
 
 h1{
 color:#2e8b57;
-font-weight:700;
 }
 
 h2,h3,h4{
@@ -37,7 +38,7 @@ color:#6b7280;
 }
 
 .stButton>button{
-background:#6a5acd;
+background:#2e8b57;
 color:white;
 border-radius:10px;
 padding:8px 20px;
@@ -50,8 +51,8 @@ background:#6a5acd;
 
 .news-card{
 background:white;
-padding:14px;
-border-radius:12px;
+padding:12px;
+border-radius:10px;
 border-left:5px solid #6a5acd;
 margin-bottom:10px;
 box-shadow:0 2px 6px rgba(0,0,0,0.05);
@@ -60,11 +61,41 @@ box-shadow:0 2px 6px rgba(0,0,0,0.05);
 </style>
 """, unsafe_allow_html=True)
 
+
 # ======================
 # GROQ CLIENT
 # ======================
 
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+try:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+except:
+    client = None
+
+
+# ======================
+# SAFE AI FUNCTION
+# ======================
+
+def run_ai(prompt):
+
+    if client is None:
+        return "⚠️ AI not configured."
+
+    try:
+
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role":"system","content":"You are a financial analyst."},
+                {"role":"user","content":prompt}
+            ]
+        )
+
+        return completion.choices[0].message.content
+
+    except:
+        return "⚠️ AI analysis unavailable (API restricted or quota exceeded)."
+
 
 # ======================
 # SECTOR DATA
@@ -82,11 +113,13 @@ SECTOR_COMPANIES = {
 
 }
 
+
 # ======================
 # TITLE
 # ======================
 
 st.title("📊 AI Investment Intelligence Dashboard")
+
 
 # ======================
 # MARKET OVERVIEW
@@ -96,35 +129,75 @@ st.subheader("📊 Market Overview")
 
 col1,col2,col3 = st.columns(3)
 
-@st.cache_data
-def metric(symbol):
 
-    df = yf.Ticker(symbol).history(period="5d")
+def market_metric(symbol):
 
-    if df.empty:
+    try:
+        df = yf.Ticker(symbol).history(period="5d")
+
+        latest = df["Close"].iloc[-1]
+        prev = df["Close"].iloc[-2]
+
+        change = ((latest-prev)/prev)*100
+
+        return round(latest,2), round(change,2)
+
+    except:
         return None,None
 
-    latest = df["Close"].iloc[-1]
-    prev = df["Close"].iloc[-2]
-
-    change = ((latest-prev)/prev)*100
-
-    return round(latest,2), round(change,2)
 
 with col1:
-    p,c = metric("^NSEI")
-    st.metric("NIFTY 50",p,str(c)+"%")
+    p,c = market_metric("^NSEI")
+    st.metric("NIFTY 50", p, str(c)+"%")
+
 
 with col2:
-    p,c = metric("^BSESN")
-    st.metric("SENSEX",p,str(c)+"%")
+    p,c = market_metric("^BSESN")
+    st.metric("SENSEX", p, str(c)+"%")
+
 
 with col3:
-    p,c = metric("^NSEBANK")
-    st.metric("BANK NIFTY",p,str(c)+"%")
+    p,c = market_metric("^NSEBANK")
+    st.metric("BANK NIFTY", p, str(c)+"%")
 
 
+# ======================
+# TOP GAINERS LOSERS
+# ======================
 
+st.subheader("🚀 Top Gainers & Losers")
+
+tickers = ["RELIANCE.NS","TCS.NS","INFY.NS","HDFCBANK.NS","ICICIBANK.NS"]
+
+data = yf.download(tickers,period="2d",progress=False)
+
+changes = {}
+
+for t in tickers:
+
+    try:
+
+        close = data["Close"][t]
+
+        change = ((close.iloc[-1]-close.iloc[-2])/close.iloc[-2])*100
+
+        changes[t] = round(change,2)
+
+    except:
+        pass
+
+
+df = pd.DataFrame(list(changes.items()),columns=["Stock","Change %"])
+
+col1,col2 = st.columns(2)
+
+with col1:
+    st.write("📈 Top Gainers")
+    st.dataframe(df.sort_values("Change %",ascending=False), width="stretch")
+
+with col2:
+    st.write("📉 Top Losers")
+    st.dataframe(df.sort_values("Change %"), width="stretch")
 
 
 # ======================
@@ -133,36 +206,38 @@ with col3:
 
 st.subheader("💰 Sector Performance Summary")
 
-sector_data={}
+sector_data = {}
 
 for sector in SECTOR_COMPANIES:
 
-    stocks=SECTOR_COMPANIES[sector][:3]
+    stocks = SECTOR_COMPANIES[sector][:3]
 
-    change_list=[]
+    changes = []
 
     for s in stocks:
 
         try:
 
-            df=yf.Ticker(s.replace(" ","")+".NS").history(period="2d")
+            df = yf.Ticker(s.replace(" ","")+".NS").history(period="2d")
 
-            latest=df["Close"].iloc[-1]
-            prev=df["Close"].iloc[-2]
+            latest = df["Close"].iloc[-1]
+            prev = df["Close"].iloc[-2]
 
-            change=((latest-prev)/prev)*100
+            change = ((latest-prev)/prev)*100
 
-            change_list.append(change)
+            changes.append(change)
 
         except:
             pass
 
-    if change_list:
-        sector_data[sector]=round(sum(change_list)/len(change_list),2)
+    if changes:
+        sector_data[sector] = round(sum(changes)/len(changes),2)
 
-sector_df=pd.DataFrame(list(sector_data.items()),columns=["Sector","Change %"])
 
-st.dataframe(sector_df,use_container_width=True)
+sector_df = pd.DataFrame(list(sector_data.items()),columns=["Sector","Change %"])
+
+st.dataframe(sector_df, width="stretch")
+
 
 # ======================
 # NEWS FUNCTION
@@ -171,26 +246,27 @@ st.dataframe(sector_df,use_container_width=True)
 @st.cache_data(ttl=3600)
 def fetch_news(company):
 
-    query=urllib.parse.quote(company+" stock")
+    query = urllib.parse.quote(company+" stock")
 
-    url=f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+    url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
 
-    feed=feedparser.parse(url)
+    feed = feedparser.parse(url)
 
-    headlines=[]
+    headlines = []
 
-    cutoff=datetime.now()-timedelta(hours=48)
+    cutoff = datetime.now()-timedelta(hours=48)
 
     for entry in feed.entries:
 
         if hasattr(entry,"published_parsed"):
 
-            published=datetime(*entry.published_parsed[:6])
+            published = datetime(*entry.published_parsed[:6])
 
-            if published>=cutoff:
+            if published >= cutoff:
                 headlines.append(entry.title)
 
     return headlines[:10]
+
 
 # ======================
 # MARKET NEWS
@@ -198,7 +274,7 @@ def fetch_news(company):
 
 st.subheader("📰 Overall Market News")
 
-market_news=fetch_news("Indian stock market")
+market_news = fetch_news("Indian stock market")
 
 for n in market_news:
 
@@ -206,7 +282,8 @@ for n in market_news:
     <div class="news-card">
     {n}
     </div>
-    """,unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
 
 # ======================
 # AI MARKET SENTIMENT
@@ -216,32 +293,21 @@ st.subheader("🧠 AI Market Sentiment")
 
 if market_news:
 
-    text="\n".join(market_news)
+    text = "\n".join(market_news)
 
-    prompt=f"""
+    prompt = f"""
 Analyze overall Indian stock market sentiment.
 
 Return:
 Market Sentiment
 Key Drivers
 Short Outlook
-
-Headlines:
-{text}
 """
 
-    completion=client.chat.completions.create(
+    result = run_ai(prompt)
 
-        model="llama-3.1-8b-instant",
+    st.write(result)
 
-        messages=[
-            {"role":"system","content":"You are a financial strategist."},
-            {"role":"user","content":prompt}
-        ]
-
-    )
-
-    st.write(completion.choices[0].message.content)
 
 # ======================
 # COMPANY ANALYSIS
@@ -249,34 +315,35 @@ Headlines:
 
 st.subheader("📈 Company Analysis")
 
-sector=st.selectbox("Select Sector",list(SECTOR_COMPANIES.keys()))
+sector = st.selectbox("Select Sector", list(SECTOR_COMPANIES.keys()))
 
-companies=SECTOR_COMPANIES[sector]
+companies = SECTOR_COMPANIES[sector]
 
-company=st.selectbox("Select Company",companies)
+company = st.selectbox("Select Company", companies)
+
 
 if st.button("Analyze Company"):
 
-    df=yf.Ticker(company.replace(" ","")+".NS").history(period="10y")
+    ticker = company.replace(" ","")+".NS"
+
+    df = yf.Ticker(ticker).history(period="10y")
 
     if not df.empty:
-
         st.line_chart(df["Close"])
+    else:
+        st.warning("Stock data unavailable.")
 
-    news=fetch_news(company)
+    news = fetch_news(company)
 
     st.subheader("Company News")
 
     for n in news:
-        st.write("•",n)
+        st.write("•", n)
 
-    text="\n".join(news)
-
-    prompt=f"""
+    prompt = f"""
 Analyze investment outlook for {company}.
 
 Return:
-
 Sentiment
 Growth Signals
 Risk Factors
@@ -284,20 +351,12 @@ Investment Summary
 Confidence Score
 """
 
-    completion=client.chat.completions.create(
-
-        model="llama-3.1-8b-instant",
-
-        messages=[
-            {"role":"system","content":"You are a professional stock analyst."},
-            {"role":"user","content":prompt}
-        ]
-
-    )
+    result = run_ai(prompt)
 
     st.subheader("🤖 AI Investment Insight")
 
-    st.write(completion.choices[0].message.content)
+    st.write(result)
+
 
 # ======================
 # CONTACT
