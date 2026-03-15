@@ -1,12 +1,11 @@
-```python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
 import feedparser
 import urllib.parse
 from datetime import datetime, timedelta
-from groq import Groq
 import streamlit.components.v1 as components
+from groq import Groq
 
 # ======================
 # PAGE CONFIG
@@ -15,35 +14,36 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="AI Investment Dashboard", layout="wide")
 
 # ======================
-# PROFESSIONAL CSS
+# MULTICOLOR CSS
 # ======================
 
 st.markdown("""
 <style>
 
 .stApp{
-background:linear-gradient(135deg,#f8fafc,#eef2ff);
+background:linear-gradient(135deg,#f0f9ff,#fdf2f8,#ecfeff);
+font-family: 'Segoe UI', sans-serif;
 }
 
 h1{color:#4f46e5;}
-h2{color:#374151;}
-h3{color:#6b7280;}
+h2{color:#0f766e;}
+h3{color:#9333ea;}
 
 .metric-card{
-background:white;
-padding:18px;
-border-radius:14px;
-border-left:6px solid seagreen;
-box-shadow:0 6px 18px rgba(0,0,0,0.08);
+background:linear-gradient(135deg,#ffffff,#f1f5f9);
+padding:20px;
+border-radius:16px;
+border-left:8px solid #10b981;
+box-shadow:0 8px 22px rgba(0,0,0,0.12);
 }
 
 .news-card{
-background:white;
-padding:14px;
-border-radius:14px;
-border-left:5px solid purple;
+background:linear-gradient(135deg,#ffffff,#faf5ff);
+padding:16px;
+border-radius:16px;
+border-left:8px solid #8b5cf6;
 margin-bottom:12px;
-box-shadow:0 6px 18px rgba(0,0,0,0.08);
+box-shadow:0 6px 20px rgba(0,0,0,0.10);
 }
 
 </style>
@@ -53,7 +53,10 @@ box-shadow:0 6px 18px rgba(0,0,0,0.08);
 # GROQ CLIENT
 # ======================
 
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+try:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+except:
+    client = None
 
 # ======================
 # SECTOR DATA
@@ -61,13 +64,29 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 SECTOR_COMPANIES = {
 
-"Technology":["TCS","Infosys","Wipro"],
+"Technology":{
+"TCS":"TCS.NS",
+"Infosys":"INFY.NS",
+"Wipro":"WIPRO.NS"
+},
 
-"Banking":["HDFC Bank","ICICI Bank","SBI"],
+"Banking":{
+"HDFC Bank":"HDFCBANK.NS",
+"ICICI Bank":"ICICIBANK.NS",
+"SBI":"SBIN.NS"
+},
 
-"Energy":["Reliance Industries","ONGC","NTPC"],
+"Energy":{
+"Reliance":"RELIANCE.NS",
+"ONGC":"ONGC.NS",
+"NTPC":"NTPC.NS"
+},
 
-"Pharma":["Sun Pharma","Dr Reddy","Cipla"]
+"Pharma":{
+"Sun Pharma":"SUNPHARMA.NS",
+"Dr Reddy":"DRREDDY.NS",
+"Cipla":"CIPLA.NS"
+}
 
 }
 
@@ -116,7 +135,6 @@ def fetch_news(query):
 
     return headlines[:10]
 
-
 # ======================
 # TRADINGVIEW CHART
 # ======================
@@ -154,7 +172,6 @@ def tradingview_chart(symbol):
     """
 
     components.html(html, height=520)
-
 
 # ======================
 # TITLE
@@ -230,7 +247,10 @@ with tab2:
 
     df=pd.DataFrame(gainers)
 
-    st.dataframe(df.sort_values("Change %",ascending=False))
+    st.dataframe(
+        df.sort_values("Change %",ascending=False)
+        .style.background_gradient(cmap="Greens")
+    )
 
 # ======================
 # SECTOR PERFORMANCE
@@ -244,7 +264,7 @@ with tab3:
 
     for sector in SECTOR_COMPANIES:
 
-        stocks=SECTOR_COMPANIES[sector]
+        stocks=SECTOR_COMPANIES[sector].values()
 
         change_list=[]
 
@@ -252,7 +272,7 @@ with tab3:
 
             try:
 
-                df=yf.Ticker(s.replace(" ","")+".NS").history(period="2d")
+                df=yf.Ticker(s).history(period="2d")
 
                 latest=df["Close"].iloc[-1]
                 prev=df["Close"].iloc[-2]
@@ -289,11 +309,13 @@ with tab4:
         </div>
         """, unsafe_allow_html=True)
 
-    st.subheader("AI Market Sentiment")
+    if client:
 
-    text="\n".join(market_news)
+        st.subheader("AI Market Sentiment")
 
-    prompt=f"""
+        text="\n".join(market_news)
+
+        prompt=f"""
 Analyze sentiment of these headlines.
 
 Return:
@@ -306,17 +328,17 @@ Headlines:
 {text}
 """
 
-    completion=client.chat.completions.create(
+        completion=client.chat.completions.create(
 
-        model="llama-3.1-8b-instant",
+            model="llama-3.1-8b-instant",
 
-        messages=[
-        {"role":"system","content":"You are a financial strategist."},
-        {"role":"user","content":prompt}
-        ]
-    )
+            messages=[
+            {"role":"system","content":"You are a financial strategist."},
+            {"role":"user","content":prompt}
+            ]
+        )
 
-    st.write(completion.choices[0].message.content)
+        st.write(completion.choices[0].message.content)
 
 # ======================
 # COMPANY ANALYSIS
@@ -328,13 +350,30 @@ with tab5:
 
     sector = st.selectbox("Select Sector",list(SECTOR_COMPANIES.keys()))
 
-    company = st.selectbox("Select Company",SECTOR_COMPANIES[sector])
+    company = st.selectbox("Select Company",list(SECTOR_COMPANIES[sector].keys()))
 
-    symbol = company.replace(" ","").upper()
+    symbol = SECTOR_COMPANIES[sector][company]
 
     st.subheader("TradingView Chart")
 
-    tradingview_chart(f"NSE:{symbol}")
+    tradingview_chart(f"NSE:{symbol.replace('.NS','')}")
+
+    st.subheader("AI Buy/Sell Signal")
+
+    df=yf.Ticker(symbol).history(period="6mo")
+
+    if not df.empty:
+
+        returns=((df["Close"].iloc[-1]-df["Close"].iloc[0])/df["Close"].iloc[0])*100
+
+        if returns>10:
+            signal="BUY"
+        elif returns<-10:
+            signal="SELL"
+        else:
+            signal="HOLD"
+
+        st.metric("AI Signal",signal)
 
 # ======================
 # CONTACT
@@ -346,7 +385,7 @@ with tab6:
 
     st.markdown("""
 
-**Ankit Srivastava**
+### **Ankit Srivastava**
 
 📞 Phone: 9616216095  
 📧 Email: ankit@example.com  
@@ -355,4 +394,3 @@ with tab6:
 Feel free to reach out for collaboration.
 
 """)
-```
