@@ -5,6 +5,7 @@ import feedparser
 import urllib.parse
 from datetime import datetime, timedelta
 from groq import Groq
+import plotly.graph_objects as go
 
 # ======================
 # PAGE CONFIG
@@ -31,19 +32,11 @@ h2,h3,h4{
 color:#6a5acd;
 }
 
-p,div,span,label{
-color:#6b7280;
-}
-
 .stButton>button{
 background:indigo;
 color:white;
 border-radius:8px;
 padding:8px 20px;
-}
-
-.stButton>button:hover{
-background:#6a5acd;
 }
 
 .news-card{
@@ -192,8 +185,6 @@ for sector in SECTOR_COMPANIES:
 
 sector_df=pd.DataFrame(list(sector_data.items()),columns=["Sector","Change %"])
 
-st.dataframe(sector_df)
-
 st.bar_chart(sector_df.set_index("Sector"))
 
 # ======================
@@ -223,58 +214,6 @@ def fetch_news(company):
                 headlines.append(entry.title)
 
     return headlines[:10]
-
-# ======================
-# MARKET NEWS
-# ======================
-
-st.subheader("📰 Overall Market News")
-
-market_news=fetch_news("Indian stock market")
-
-for n in market_news:
-
-    st.markdown(f"""
-    <div class="news-card">
-    {n}
-    </div>
-    """,unsafe_allow_html=True)
-
-# ======================
-# AI MARKET SENTIMENT
-# ======================
-
-st.subheader("🧠 AI Market Sentiment")
-
-if market_news:
-
-    text="\n".join(market_news)
-
-    prompt=f"""
-Analyze overall Indian stock market sentiment.
-
-Return:
-
-Market Sentiment
-Key Drivers
-Short Outlook
-
-Headlines:
-{text}
-"""
-
-    completion=client.chat.completions.create(
-
-        model="llama-3.1-8b-instant",
-
-        messages=[
-            {"role":"system","content":"You are a financial market strategist."},
-            {"role":"user","content":prompt}
-        ]
-
-    )
-
-    st.write(completion.choices[0].message.content)
 
 # ======================
 # COMPANY ANALYSIS
@@ -313,9 +252,60 @@ if st.button("Analyze Company"):
         df["MA50"]=df["Close"].rolling(50).mean()
         df["MA200"]=df["Close"].rolling(200).mean()
 
-        st.subheader(f"{company} Price Trend")
+        # ===== Plotly Chart =====
 
-        st.line_chart(df[["Close","MA50","MA200"]])
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=df.index,
+            y=df["Close"],
+            mode="lines",
+            name="Close Price"
+        ))
+
+        fig.add_trace(go.Scatter(
+            x=df.index,
+            y=df["MA50"],
+            mode="lines",
+            name="MA50"
+        ))
+
+        fig.add_trace(go.Scatter(
+            x=df.index,
+            y=df["MA200"],
+            mode="lines",
+            name="MA200"
+        ))
+
+        fig.update_layout(
+
+            title=f"{company} Stock Price",
+
+            xaxis=dict(
+                title="Date",
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=1,label="1m",step="month",stepmode="backward"),
+                        dict(count=6,label="6m",step="month",stepmode="backward"),
+                        dict(count=1,label="1y",step="year",stepmode="backward"),
+                        dict(step="all")
+                    ])
+                ),
+                rangeslider=dict(visible=True),
+                type="date"
+            ),
+
+            yaxis_title="Price (₹)",
+
+            template="plotly_white",
+
+            hovermode="x unified"
+
+        )
+
+        st.plotly_chart(fig,use_container_width=True)
+
+        # ===== Company News =====
 
         news=fetch_news(company)
 
@@ -324,6 +314,8 @@ if st.button("Analyze Company"):
         for n in news:
             st.write("•",n)
 
+        # ===== AI Analysis =====
+
         text="\n".join(news)
 
         prompt=f"""
@@ -331,19 +323,13 @@ Analyze investment outlook for {company}.
 
 Return structured output:
 
-Sentiment (Bullish/Neutral/Bearish)
-
+Sentiment
 Growth Drivers
-
 Risk Factors
-
 Short Term Outlook
-
 Long Term Outlook
-
 Investment Summary
-
-Confidence Score (0-100)
+Confidence Score
 """
 
         completion=client.chat.completions.create(
