@@ -5,7 +5,7 @@ import feedparser
 import urllib.parse
 from datetime import datetime, timedelta
 from groq import Groq
-import plotly.graph_objects as go
+import ta
 
 # ======================
 # PAGE CONFIG
@@ -21,30 +21,31 @@ st.markdown("""
 <style>
 
 .stApp{
-background:#f7fafc;
+background:#f3f4f6;
 }
 
 h1{
-color:#2e8b57;
+color:seagreen;
 }
 
-h2,h3,h4{
-color:#6a5acd;
+h2,h3{
+color:indigo;
 }
 
-.stButton>button{
-background:indigo;
-color:white;
-border-radius:8px;
-padding:8px 20px;
+.metric-box{
+background:white;
+padding:15px;
+border-radius:10px;
+border-left:6px solid gray;
+text-align:center;
 }
 
 .news-card{
 background:white;
-padding:12px;
-border-radius:10px;
-border-left:5px solid #6a5acd;
-margin-bottom:10px;
+padding:10px;
+border-radius:8px;
+border-left:6px solid indigo;
+margin-bottom:8px;
 }
 
 </style>
@@ -87,7 +88,7 @@ st.title("📊 AI Investment Intelligence Dashboard")
 # MARKET OVERVIEW
 # ======================
 
-st.subheader("📊 Market Overview")
+st.subheader("Market Overview")
 
 col1,col2,col3 = st.columns(3)
 
@@ -107,22 +108,46 @@ def metric(symbol):
         return "NA","NA"
 
 with col1:
+
     p,c = metric("^NSEI")
-    st.metric("NIFTY 50",p,str(c)+"%")
+
+    st.markdown(f"""
+    <div class="metric-box">
+    <h3>NIFTY 50</h3>
+    <h2>{p}</h2>
+    <p>{c}%</p>
+    </div>
+    """,unsafe_allow_html=True)
 
 with col2:
+
     p,c = metric("^BSESN")
-    st.metric("SENSEX",p,str(c)+"%")
+
+    st.markdown(f"""
+    <div class="metric-box">
+    <h3>SENSEX</h3>
+    <h2>{p}</h2>
+    <p>{c}%</p>
+    </div>
+    """,unsafe_allow_html=True)
 
 with col3:
+
     p,c = metric("^NSEBANK")
-    st.metric("BANK NIFTY",p,str(c)+"%")
+
+    st.markdown(f"""
+    <div class="metric-box">
+    <h3>BANK NIFTY</h3>
+    <h2>{p}</h2>
+    <p>{c}%</p>
+    </div>
+    """,unsafe_allow_html=True)
 
 # ======================
 # TOP GAINERS LOSERS
 # ======================
 
-st.subheader("🚀 Top Gainers & Losers")
+st.subheader("Top Gainers & Losers")
 
 tickers = ["RELIANCE.NS","TCS.NS","INFY.NS","HDFCBANK.NS","ICICIBANK.NS"]
 
@@ -144,17 +169,19 @@ col1,col2=st.columns(2)
 
 with col1:
     st.write("📈 Gainers")
-    st.dataframe(df.sort_values("Change %",ascending=False))
+    st.dataframe(df.sort_values("Change %",ascending=False)
+    .style.background_gradient(cmap="Greens"))
 
 with col2:
     st.write("📉 Losers")
-    st.dataframe(df.sort_values("Change %"))
+    st.dataframe(df.sort_values("Change %")
+    .style.background_gradient(cmap="Reds"))
 
 # ======================
 # SECTOR PERFORMANCE
 # ======================
 
-st.subheader("💰 Sector Performance Summary")
+st.subheader("Sector Performance")
 
 sector_data={}
 
@@ -185,7 +212,7 @@ for sector in SECTOR_COMPANIES:
 
 sector_df=pd.DataFrame(list(sector_data.items()),columns=["Sector","Change %"])
 
-st.bar_chart(sector_df.set_index("Sector"))
+st.dataframe(sector_df.style.background_gradient(cmap="Blues"))
 
 # ======================
 # NEWS FUNCTION
@@ -216,136 +243,135 @@ def fetch_news(company):
     return headlines[:10]
 
 # ======================
+# MARKET NEWS
+# ======================
+
+st.subheader("Market News")
+
+market_news=fetch_news("Indian stock market")
+
+for n in market_news:
+
+    st.markdown(f"""
+    <div class="news-card">
+    {n}
+    </div>
+    """,unsafe_allow_html=True)
+
+# ======================
+# AI MARKET SENTIMENT
+# ======================
+
+st.subheader("AI Market Sentiment")
+
+if market_news:
+
+    text="\n".join(market_news)
+
+    prompt=f"""
+Analyze Indian stock market sentiment.
+
+Return:
+
+Market Sentiment
+Key Drivers
+Short Outlook
+"""
+
+    completion=client.chat.completions.create(
+
+        model="llama-3.1-8b-instant",
+
+        messages=[
+            {"role":"system","content":"You are a financial strategist."},
+            {"role":"user","content":prompt}
+        ]
+
+    )
+
+    st.write(completion.choices[0].message.content)
+
+# ======================
+# TECHNICAL INDICATORS
+# ======================
+
+def calculate_indicators(df):
+
+    df["RSI"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
+
+    macd = ta.trend.MACD(df["Close"])
+    df["MACD"] = macd.macd()
+    df["MACD Signal"] = macd.macd_signal()
+
+    bb = ta.volatility.BollingerBands(df["Close"])
+    df["BB High"] = bb.bollinger_hband()
+    df["BB Low"] = bb.bollinger_lband()
+
+    df["SMA50"] = ta.trend.sma_indicator(df["Close"], window=50)
+    df["SMA200"] = ta.trend.sma_indicator(df["Close"], window=200)
+
+    df["EMA20"] = ta.trend.ema_indicator(df["Close"], window=20)
+
+    df["ADX"] = ta.trend.ADXIndicator(df["High"], df["Low"], df["Close"]).adx()
+
+    df["CCI"] = ta.trend.CCIIndicator(df["High"], df["Low"], df["Close"]).cci()
+
+    df["OBV"] = ta.volume.OnBalanceVolumeIndicator(df["Close"], df["Volume"]).on_balance_volume()
+
+    return df
+
+# ======================
 # COMPANY ANALYSIS
 # ======================
 
-st.subheader("📈 Company Analysis")
+st.subheader("Company Technical Analysis")
 
 sector=st.selectbox("Select Sector",list(SECTOR_COMPANIES.keys()))
 
-companies=SECTOR_COMPANIES[sector]
-
-company=st.selectbox("Select Company",companies)
-
-duration = st.selectbox(
-    "Chart Duration",
-    ["1 Month","3 Months","6 Months","1 Year","5 Years","10 Years"]
-)
-
-duration_map = {
-    "1 Month":"1mo",
-    "3 Months":"3mo",
-    "6 Months":"6mo",
-    "1 Year":"1y",
-    "5 Years":"5y",
-    "10 Years":"10y"
-}
-
-period = duration_map[duration]
+company=st.selectbox("Select Company",SECTOR_COMPANIES[sector])
 
 if st.button("Analyze Company"):
 
-    with st.spinner("Analyzing company..."):
+    df=yf.Ticker(company.replace(" ","")+".NS").history(period="2y")
 
-        df=yf.Ticker(company.replace(" ","")+".NS").history(period=period)
+    df=calculate_indicators(df)
 
-        df["MA50"]=df["Close"].rolling(50).mean()
-        df["MA200"]=df["Close"].rolling(200).mean()
+    latest=df.iloc[-1]
 
-        # ===== Plotly Chart =====
+    indicator_data={
 
-        fig = go.Figure()
+        "Indicator":[
+        "RSI","MACD","MACD Signal","ADX","CCI",
+        "SMA50","SMA200","EMA20","Bollinger High",
+        "Bollinger Low","OBV"
+        ],
 
-        fig.add_trace(go.Scatter(
-            x=df.index,
-            y=df["Close"],
-            mode="lines",
-            name="Close Price"
-        ))
+        "Value":[
+        round(latest["RSI"],2),
+        round(latest["MACD"],2),
+        round(latest["MACD Signal"],2),
+        round(latest["ADX"],2),
+        round(latest["CCI"],2),
+        round(latest["SMA50"],2),
+        round(latest["SMA200"],2),
+        round(latest["EMA20"],2),
+        round(latest["BB High"],2),
+        round(latest["BB Low"],2),
+        round(latest["OBV"],2)
+        ]
 
-        fig.add_trace(go.Scatter(
-            x=df.index,
-            y=df["MA50"],
-            mode="lines",
-            name="MA50"
-        ))
+    }
 
-        fig.add_trace(go.Scatter(
-            x=df.index,
-            y=df["MA200"],
-            mode="lines",
-            name="MA200"
-        ))
+    indicator_df=pd.DataFrame(indicator_data)
 
-        fig.update_layout(
+    st.dataframe(indicator_df.style.background_gradient(cmap="viridis"))
 
-            title=f"{company} Stock Price",
+    news=fetch_news(company)
 
-            xaxis=dict(
-                title="Date",
-                rangeselector=dict(
-                    buttons=list([
-                        dict(count=1,label="1m",step="month",stepmode="backward"),
-                        dict(count=6,label="6m",step="month",stepmode="backward"),
-                        dict(count=1,label="1y",step="year",stepmode="backward"),
-                        dict(step="all")
-                    ])
-                ),
-                rangeslider=dict(visible=True),
-                type="date"
-            ),
+    st.subheader("Company News")
 
-            yaxis_title="Price (₹)",
-
-            template="plotly_white",
-
-            hovermode="x unified"
-
-        )
-
-        st.plotly_chart(fig,use_container_width=True)
-
-        # ===== Company News =====
-
-        news=fetch_news(company)
-
-        st.subheader("Company News")
-
-        for n in news:
-            st.write("•",n)
-
-        # ===== AI Analysis =====
-
-        text="\n".join(news)
-
-        prompt=f"""
-Analyze investment outlook for {company}.
-
-Return structured output:
-
-Sentiment
-Growth Drivers
-Risk Factors
-Short Term Outlook
-Long Term Outlook
-Investment Summary
-Confidence Score
-"""
-
-        completion=client.chat.completions.create(
-
-            model="llama-3.1-8b-instant",
-
-            messages=[
-                {"role":"system","content":"You are a stock analyst."},
-                {"role":"user","content":prompt}
-            ]
-
-        )
-
-        st.subheader("🤖 AI Investment Insight")
-
-        st.write(completion.choices[0].message.content)
+    for n in news:
+        st.write("•",n)
 
 # ======================
 # FOOTER
@@ -356,7 +382,7 @@ st.markdown("""
 
 <div style="text-align:center;color:gray">
 
-<h3 style="color:teal">Contact</h3>
+<h3 style="color:seagreen">Contact</h3>
 
 Ankit<br>
 📞 9616216095
