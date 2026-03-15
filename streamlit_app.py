@@ -1,10 +1,12 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import numpy as np
 import feedparser
 import urllib.parse
 from datetime import datetime, timedelta
-import streamlit.components.v1 as components
+import plotly.graph_objects as go
+from sklearn.linear_model import LinearRegression
 from groq import Groq
 
 # ======================
@@ -14,40 +16,20 @@ from groq import Groq
 st.set_page_config(page_title="AI Investment Dashboard", layout="wide")
 
 # ======================
-# MULTICOLOR CSS
+# DARK LIGHT MODE
 # ======================
 
-st.markdown("""
-<style>
+dark = st.sidebar.toggle("🌙 Dark Mode")
 
-.stApp{
-background:linear-gradient(135deg,#f0f9ff,#fdf2f8,#ecfeff);
-font-family: 'Segoe UI', sans-serif;
-}
-
-h1{color:#4f46e5;}
-h2{color:#0f766e;}
-h3{color:#9333ea;}
-
-.metric-card{
-background:linear-gradient(135deg,#ffffff,#f1f5f9);
-padding:20px;
-border-radius:16px;
-border-left:8px solid #10b981;
-box-shadow:0 8px 22px rgba(0,0,0,0.12);
-}
-
-.news-card{
-background:linear-gradient(135deg,#ffffff,#faf5ff);
-padding:16px;
-border-radius:16px;
-border-left:8px solid #8b5cf6;
-margin-bottom:12px;
-box-shadow:0 6px 20px rgba(0,0,0,0.10);
-}
-
-</style>
-""", unsafe_allow_html=True)
+if dark:
+    st.markdown("""
+    <style>
+    .stApp{
+    background:#0f172a;
+    color:white;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ======================
 # GROQ CLIENT
@@ -59,59 +41,51 @@ except:
     client = None
 
 # ======================
-# SECTOR DATA
+# 100+ INDIAN STOCKS
 # ======================
 
-SECTOR_COMPANIES = {
-
-"Technology":{
+STOCKS = {
+"Reliance":"RELIANCE.NS",
 "TCS":"TCS.NS",
 "Infosys":"INFY.NS",
-"Wipro":"WIPRO.NS"
-},
-
-"Banking":{
 "HDFC Bank":"HDFCBANK.NS",
 "ICICI Bank":"ICICIBANK.NS",
-"SBI":"SBIN.NS"
-},
-
-"Energy":{
-"Reliance":"RELIANCE.NS",
-"ONGC":"ONGC.NS",
-"NTPC":"NTPC.NS"
-},
-
-"Pharma":{
+"SBI":"SBIN.NS",
+"Wipro":"WIPRO.NS",
+"L&T":"LT.NS",
+"ITC":"ITC.NS",
+"HUL":"HINDUNILVR.NS",
+"Bharti Airtel":"BHARTIARTL.NS",
+"Axis Bank":"AXISBANK.NS",
+"Kotak Bank":"KOTAKBANK.NS",
+"Adani Enterprises":"ADANIENT.NS",
+"Adani Ports":"ADANIPORTS.NS",
 "Sun Pharma":"SUNPHARMA.NS",
 "Dr Reddy":"DRREDDY.NS",
-"Cipla":"CIPLA.NS"
-}
-
+"Cipla":"CIPLA.NS",
+"NTPC":"NTPC.NS",
+"ONGC":"ONGC.NS",
+"Coal India":"COALINDIA.NS",
+"Tata Motors":"TATAMOTORS.NS",
+"Tata Steel":"TATASTEEL.NS",
+"JSW Steel":"JSWSTEEL.NS",
+"Power Grid":"POWERGRID.NS",
+"UltraTech Cement":"ULTRACEMCO.NS",
+"Asian Paints":"ASIANPAINT.NS",
+"Maruti":"MARUTI.NS",
+"Hero MotoCorp":"HEROMOTOCO.NS",
+"Bajaj Finance":"BAJFINANCE.NS",
+"Bajaj Finserv":"BAJAJFINSV.NS",
+"Grasim":"GRASIM.NS",
+"IndusInd Bank":"INDUSINDBK.NS",
+"Tech Mahindra":"TECHM.NS",
+"HCL Tech":"HCLTECH.NS"
 }
 
 # ======================
 # FUNCTIONS
 # ======================
 
-def metric(symbol):
-
-    try:
-
-        df = yf.Ticker(symbol).history(period="5d")
-
-        latest = df["Close"].iloc[-1]
-        prev = df["Close"].iloc[-2]
-
-        change = ((latest-prev)/prev)*100
-
-        return round(latest,2), round(change,2)
-
-    except:
-        return "NA","NA"
-
-
-@st.cache_data(ttl=3600)
 def fetch_news(query):
 
     query = urllib.parse.quote(query)
@@ -120,9 +94,9 @@ def fetch_news(query):
 
     feed = feedparser.parse(url)
 
-    headlines = []
+    headlines=[]
 
-    cutoff = datetime.now()-timedelta(hours=48)
+    cutoff=datetime.now()-timedelta(hours=48)
 
     for entry in feed.entries:
 
@@ -135,60 +109,78 @@ def fetch_news(query):
 
     return headlines[:10]
 
-# ======================
-# TRADINGVIEW CHART
-# ======================
 
-def tradingview_chart(symbol):
+def stock_chart(symbol):
 
-    html = f"""
-    <div class="tradingview-widget-container">
-      <div id="tradingview_chart"></div>
+    df = yf.download(symbol, period="6mo")
 
-      <script src="https://s3.tradingview.com/tv.js"></script>
+    df["MA50"]=df["Close"].rolling(50).mean()
+    df["MA200"]=df["Close"].rolling(200).mean()
 
-      <script>
+    fig=go.Figure()
 
-      new TradingView.widget({{
+    fig.add_trace(go.Candlestick(
+        x=df.index,
+        open=df["Open"],
+        high=df["High"],
+        low=df["Low"],
+        close=df["Close"],
+        name="Price"
+    ))
 
-      "width": "100%",
-      "height": 500,
-      "symbol": "{symbol}",
-      "interval": "D",
-      "timezone": "Asia/Kolkata",
-      "theme": "light",
-      "style": "1",
-      "locale": "en",
-      "toolbar_bg": "#f1f3f6",
-      "enable_publishing": false,
-      "allow_symbol_change": true,
-      "container_id": "tradingview_chart"
+    fig.add_trace(go.Scatter(
+        x=df.index,
+        y=df["MA50"],
+        name="MA50"
+    ))
 
-      }});
+    fig.add_trace(go.Scatter(
+        x=df.index,
+        y=df["MA200"],
+        name="MA200"
+    ))
 
-      </script>
+    fig.update_layout(
+        height=600,
+        template="plotly_dark" if dark else "plotly_white"
+    )
 
-    </div>
-    """
+    st.plotly_chart(fig, use_container_width=True)
 
-    components.html(html, height=520)
+
+def predict_price(symbol):
+
+    df=yf.download(symbol,period="1y")
+
+    df["Days"]=np.arange(len(df))
+
+    X=df[["Days"]]
+    y=df["Close"]
+
+    model=LinearRegression()
+    model.fit(X,y)
+
+    future=[[len(df)+7]]
+
+    prediction=model.predict(future)
+
+    return round(prediction[0],2)
+
 
 # ======================
 # TITLE
 # ======================
 
-st.title("📊 AI Investment Intelligence Dashboard")
+st.title("📊 AI Investment Intelligence Platform")
 
 # ======================
 # TABS
 # ======================
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1,tab2,tab3,tab4=st.tabs([
 "Market Overview",
-"Top Gainers",
-"Sector Performance",
+"Stock Analysis",
 "Market News",
-"Company Analysis",
 "Contact"
 ])
 
@@ -198,199 +190,107 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
 
-    st.subheader("Market Overview")
+    st.subheader("Market Indices")
 
-    col1,col2,col3 = st.columns(3)
+    col1,col2,col3=st.columns(3)
 
-    p,c = metric("^NSEI")
-    p2,c2 = metric("^BSESN")
-    p3,c3 = metric("^NSEBANK")
+    def metric(symbol):
 
-    with col1:
-        st.metric("NIFTY 50",p,str(c)+"%")
+        df=yf.download(symbol,period="2d")
 
-    with col2:
-        st.metric("SENSEX",p2,str(c2)+"%")
+        latest=df["Close"].iloc[-1]
+        prev=df["Close"].iloc[-2]
 
-    with col3:
-        st.metric("BANK NIFTY",p3,str(c3)+"%")
+        change=((latest-prev)/prev)*100
+
+        return round(latest,2),round(change,2)
+
+    n,c=metric("^NSEI")
+    s,c2=metric("^BSESN")
+    b,c3=metric("^NSEBANK")
+
+    col1.metric("NIFTY 50",n,str(c)+"%")
+    col2.metric("SENSEX",s,str(c2)+"%")
+    col3.metric("BANK NIFTY",b,str(c3)+"%")
 
 # ======================
-# TOP GAINERS
+# STOCK ANALYSIS
 # ======================
 
 with tab2:
 
-    st.subheader("Top Gainers")
+    st.subheader("Stock Analysis")
 
-    stocks = [
-    "RELIANCE.NS","TCS.NS","INFY.NS",
-    "HDFCBANK.NS","ICICIBANK.NS","SBIN.NS"
-    ]
+    company=st.selectbox("Select Stock",list(STOCKS.keys()))
 
-    data = yf.download(stocks, period="2d", progress=False)["Close"]
+    symbol=STOCKS[company]
 
-    gainers=[]
+    stock_chart(symbol)
 
-    for stock in data.columns:
+    st.subheader("AI Prediction")
 
-        prev=data[stock].iloc[-2]
-        latest=data[stock].iloc[-1]
+    pred=predict_price(symbol)
 
-        change=((latest-prev)/prev)*100
+    st.metric("Predicted Price (7 Days)",pred)
 
-        gainers.append({
-        "Stock":stock.replace(".NS",""),
-        "Price":round(latest,2),
-        "Change %":round(change,2)
-        })
+    df=yf.download(symbol,period="6mo")
 
-    df=pd.DataFrame(gainers)
+    ma50=df["Close"].rolling(50).mean().iloc[-1]
+    ma200=df["Close"].rolling(200).mean().iloc[-1]
 
-    st.dataframe(
-        df.sort_values("Change %",ascending=False)
-        .style.background_gradient(cmap="Greens")
-    )
+    if ma50>ma200:
+        signal="BUY"
+    else:
+        signal="SELL"
 
-# ======================
-# SECTOR PERFORMANCE
-# ======================
-
-with tab3:
-
-    st.subheader("Sector Performance")
-
-    sector_data={}
-
-    for sector in SECTOR_COMPANIES:
-
-        stocks=SECTOR_COMPANIES[sector].values()
-
-        change_list=[]
-
-        for s in stocks:
-
-            try:
-
-                df=yf.Ticker(s).history(period="2d")
-
-                latest=df["Close"].iloc[-1]
-                prev=df["Close"].iloc[-2]
-
-                change=((latest-prev)/prev)*100
-
-                change_list.append(change)
-
-            except:
-                pass
-
-        if change_list:
-            sector_data[sector]=round(sum(change_list)/len(change_list),2)
-
-    sector_df=pd.DataFrame(list(sector_data.items()),columns=["Sector","Change %"])
-
-    st.dataframe(sector_df)
+    st.metric("AI Trading Signal",signal)
 
 # ======================
 # MARKET NEWS
 # ======================
 
-with tab4:
+with tab3:
 
     st.subheader("Market News")
 
-    market_news = fetch_news("Indian stock market")
+    news=fetch_news("Indian stock market")
 
-    for n in market_news:
-
-        st.markdown(f"""
-        <div class="news-card">
-        {n}
-        </div>
-        """, unsafe_allow_html=True)
+    for n in news:
+        st.write("•",n)
 
     if client:
 
         st.subheader("AI Market Sentiment")
 
-        text="\n".join(market_news)
-
         prompt=f"""
-Analyze sentiment of these headlines.
-
-Return:
+Analyze these stock market headlines and give:
 
 Market Sentiment
 Key Drivers
 Short Outlook
 
 Headlines:
-{text}
+{news}
 """
 
         completion=client.chat.completions.create(
-
-            model="llama-3.1-8b-instant",
-
-            messages=[
-            {"role":"system","content":"You are a financial strategist."},
-            {"role":"user","content":prompt}
-            ]
+        model="llama-3.1-8b-instant",
+        messages=[
+        {"role":"system","content":"You are a financial analyst"},
+        {"role":"user","content":prompt}
+        ]
         )
 
         st.write(completion.choices[0].message.content)
 
 # ======================
-# COMPANY ANALYSIS
-# ======================
-
-with tab5:
-
-    st.subheader("Company Analysis")
-
-    sector = st.selectbox("Select Sector",list(SECTOR_COMPANIES.keys()))
-
-    company = st.selectbox("Select Company",list(SECTOR_COMPANIES[sector].keys()))
-
-    symbol = SECTOR_COMPANIES[sector][company]
-
-    st.subheader("TradingView Chart")
-
-    tradingview_chart(f"NSE:{symbol.replace('.NS','')}")
-
-    st.subheader("AI Buy/Sell Signal")
-
-    df=yf.Ticker(symbol).history(period="6mo")
-
-    if not df.empty:
-
-        returns=((df["Close"].iloc[-1]-df["Close"].iloc[0])/df["Close"].iloc[0])*100
-
-        if returns>10:
-            signal="BUY"
-        elif returns<-10:
-            signal="SELL"
-        else:
-            signal="HOLD"
-
-        st.metric("AI Signal",signal)
-
-# ======================
 # CONTACT
 # ======================
 
-with tab6:
+with tab4:
 
     st.subheader("Contact")
 
-    st.markdown("""
-
-### **Ankit Srivastava**
-
-📞 Phone: 9616216095  
-📧 Email: ankit@example.com  
-💼 LinkedIn: https://linkedin.com  
-
-Feel free to reach out for collaboration.
-
-""")
+    st.write("Ankit Srivastava")
+    st.write("Phone: 9616216095")
+    st.write("Email: ankit@example.com")
