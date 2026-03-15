@@ -1,4 +1,4 @@
-
+```python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -6,6 +6,7 @@ import feedparser
 import urllib.parse
 from datetime import datetime, timedelta
 from groq import Groq
+import streamlit.components.v1 as components
 
 # ======================
 # PAGE CONFIG
@@ -14,70 +15,35 @@ from groq import Groq
 st.set_page_config(page_title="AI Investment Dashboard", layout="wide")
 
 # ======================
-# MULTICOLOR THEME
+# PROFESSIONAL CSS
 # ======================
 
 st.markdown("""
 <style>
 
 .stApp{
-background:#f8fafc;
+background:linear-gradient(135deg,#f8fafc,#eef2ff);
 }
-
-/* Headings */
 
 h1{color:#4f46e5;}
-h2{color:#6b7280;}
-h3{color:#374151;}
+h2{color:#374151;}
+h3{color:#6b7280;}
 
-/* Metric Cards */
-
-.metric-green{
+.metric-card{
 background:white;
-padding:15px;
-border-radius:10px;
+padding:18px;
+border-radius:14px;
 border-left:6px solid seagreen;
-box-shadow:0px 4px 12px rgba(0,0,0,0.08);
+box-shadow:0 6px 18px rgba(0,0,0,0.08);
 }
-
-.metric-indigo{
-background:white;
-padding:15px;
-border-radius:10px;
-border-left:6px solid indigo;
-box-shadow:0px 4px 12px rgba(0,0,0,0.08);
-}
-
-.metric-orange{
-background:white;
-padding:15px;
-border-radius:10px;
-border-left:6px solid orange;
-box-shadow:0px 4px 12px rgba(0,0,0,0.08);
-}
-
-/* News Cards */
 
 .news-card{
 background:white;
-padding:12px;
-border-radius:10px;
+padding:14px;
+border-radius:14px;
 border-left:5px solid purple;
-margin-bottom:10px;
-box-shadow:0px 4px 12px rgba(0,0,0,0.08);
-}
-
-/* Buttons */
-
-.stButton>button{
-background:indigo;
-color:white;
-border-radius:8px;
-padding:8px 20px;
-}
-
-.stButton>button:hover{
-background:seagreen;
+margin-bottom:12px;
+box-shadow:0 6px 18px rgba(0,0,0,0.08);
 }
 
 </style>
@@ -150,6 +116,46 @@ def fetch_news(query):
 
     return headlines[:10]
 
+
+# ======================
+# TRADINGVIEW CHART
+# ======================
+
+def tradingview_chart(symbol):
+
+    html = f"""
+    <div class="tradingview-widget-container">
+      <div id="tradingview_chart"></div>
+
+      <script src="https://s3.tradingview.com/tv.js"></script>
+
+      <script>
+
+      new TradingView.widget({{
+
+      "width": "100%",
+      "height": 500,
+      "symbol": "{symbol}",
+      "interval": "D",
+      "timezone": "Asia/Kolkata",
+      "theme": "light",
+      "style": "1",
+      "locale": "en",
+      "toolbar_bg": "#f1f3f6",
+      "enable_publishing": false,
+      "allow_symbol_change": true,
+      "container_id": "tradingview_chart"
+
+      }});
+
+      </script>
+
+    </div>
+    """
+
+    components.html(html, height=520)
+
+
 # ======================
 # TITLE
 # ======================
@@ -170,7 +176,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 ])
 
 # ======================
-# TAB 1 MARKET OVERVIEW
+# MARKET OVERVIEW
 # ======================
 
 with tab1:
@@ -184,56 +190,37 @@ with tab1:
     p3,c3 = metric("^NSEBANK")
 
     with col1:
-        st.markdown(f"""
-        <div class="metric-green">
-        <h3>NIFTY 50</h3>
-        <h2>{p}</h2>
-        <p>{c}%</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.metric("NIFTY 50",p,str(c)+"%")
 
     with col2:
-        st.markdown(f"""
-        <div class="metric-indigo">
-        <h3>SENSEX</h3>
-        <h2>{p2}</h2>
-        <p>{c2}%</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.metric("SENSEX",p2,str(c2)+"%")
 
     with col3:
-        st.markdown(f"""
-        <div class="metric-orange">
-        <h3>BANK NIFTY</h3>
-        <h2>{p3}</h2>
-        <p>{c3}%</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.metric("BANK NIFTY",p3,str(c3)+"%")
 
 # ======================
-# TAB 2 TOP GAINERS
+# TOP GAINERS
 # ======================
 
 with tab2:
 
-    st.subheader("📈 Latest Top Gainers")
+    st.subheader("Top Gainers")
 
     stocks = [
     "RELIANCE.NS","TCS.NS","INFY.NS",
-    "HDFCBANK.NS","ICICIBANK.NS",
-    "ITC.NS","SBIN.NS"
+    "HDFCBANK.NS","ICICIBANK.NS","SBIN.NS"
     ]
 
     data = yf.download(stocks, period="2d", progress=False)["Close"]
 
-    gainers = []
+    gainers=[]
 
     for stock in data.columns:
 
-        prev = data[stock].iloc[-2]
-        latest = data[stock].iloc[-1]
+        prev=data[stock].iloc[-2]
+        latest=data[stock].iloc[-1]
 
-        change = ((latest-prev)/prev)*100
+        change=((latest-prev)/prev)*100
 
         gainers.append({
         "Stock":stock.replace(".NS",""),
@@ -241,12 +228,12 @@ with tab2:
         "Change %":round(change,2)
         })
 
-    df = pd.DataFrame(gainers)
+    df=pd.DataFrame(gainers)
 
     st.dataframe(df.sort_values("Change %",ascending=False))
 
 # ======================
-# TAB 3 SECTOR PERFORMANCE
+# SECTOR PERFORMANCE
 # ======================
 
 with tab3:
@@ -257,7 +244,7 @@ with tab3:
 
     for sector in SECTOR_COMPANIES:
 
-        stocks = SECTOR_COMPANIES[sector]
+        stocks=SECTOR_COMPANIES[sector]
 
         change_list=[]
 
@@ -265,7 +252,7 @@ with tab3:
 
             try:
 
-                df = yf.Ticker(s.replace(" ","")+".NS").history(period="2d")
+                df=yf.Ticker(s.replace(" ","")+".NS").history(period="2d")
 
                 latest=df["Close"].iloc[-1]
                 prev=df["Close"].iloc[-2]
@@ -280,12 +267,12 @@ with tab3:
         if change_list:
             sector_data[sector]=round(sum(change_list)/len(change_list),2)
 
-    sector_df = pd.DataFrame(list(sector_data.items()),columns=["Sector","Change %"])
+    sector_df=pd.DataFrame(list(sector_data.items()),columns=["Sector","Change %"])
 
     st.dataframe(sector_df)
 
 # ======================
-# TAB 4 MARKET NEWS
+# MARKET NEWS
 # ======================
 
 with tab4:
@@ -304,9 +291,9 @@ with tab4:
 
     st.subheader("AI Market Sentiment")
 
-    text = "\n".join(market_news)
+    text="\n".join(market_news)
 
-    prompt = f"""
+    prompt=f"""
 Analyze sentiment of these headlines.
 
 Return:
@@ -319,7 +306,7 @@ Headlines:
 {text}
 """
 
-    completion = client.chat.completions.create(
+    completion=client.chat.completions.create(
 
         model="llama-3.1-8b-instant",
 
@@ -332,7 +319,7 @@ Headlines:
     st.write(completion.choices[0].message.content)
 
 # ======================
-# TAB 5 COMPANY ANALYSIS
+# COMPANY ANALYSIS
 # ======================
 
 with tab5:
@@ -343,43 +330,14 @@ with tab5:
 
     company = st.selectbox("Select Company",SECTOR_COMPANIES[sector])
 
-    if st.button("Analyze Company"):
+    symbol = company.replace(" ","").upper()
 
-        news = fetch_news(company)
+    st.subheader("TradingView Chart")
 
-        st.subheader("Company News")
-
-        for n in news:
-            st.write("•",n)
-
-        prompt = f"""
-Analyze investment outlook for {company}
-
-Return:
-
-Investment Rating
-Growth Drivers
-Risk Factors
-Short Term Outlook
-Long Term Outlook
-"""
-
-        completion = client.chat.completions.create(
-
-            model="llama-3.1-8b-instant",
-
-            messages=[
-            {"role":"system","content":"You are a stock analyst."},
-            {"role":"user","content":prompt}
-            ]
-        )
-
-        st.subheader("🤖 AI Investment Insight")
-
-        st.write(completion.choices[0].message.content)
+    tradingview_chart(f"NSE:{symbol}")
 
 # ======================
-# TAB 6 CONTACT
+# CONTACT
 # ======================
 
 with tab6:
@@ -394,7 +352,7 @@ with tab6:
 📧 Email: ankit@example.com  
 💼 LinkedIn: https://linkedin.com  
 
-Feel free to reach out for collaboration or questions regarding the AI Investment Dashboard.
+Feel free to reach out for collaboration.
 
 """)
-
+```
