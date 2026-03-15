@@ -127,7 +127,7 @@ with col3:
 # TOP GAINERS LOSERS
 # ======================
 
-st.subheader("🚀 Top Gainers & Losers")
+
 
 tickers = ["RELIANCE.NS","TCS.NS","INFY.NS","HDFCBANK.NS","ICICIBANK.NS"]
 
@@ -146,15 +146,7 @@ for t in tickers:
 
 df=pd.DataFrame(list(changes.items()),columns=["Stock","Change %"])
 
-col1,col2=st.columns(2)
 
-with col1:
-    st.write("📈 Gainers")
-    st.dataframe(df.sort_values("Change %",ascending=False),use_container_width=True)
-
-with col2:
-    st.write("📉 Losers")
-    st.dataframe(df.sort_values("Change %"),use_container_width=True)
 
 # ======================
 # SECTOR PERFORMANCE
