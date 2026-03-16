@@ -38,7 +38,7 @@ color:#6b7280;
 }
 
 .stButton>button{
-background:#2e8b57;
+
 color:white;
 border-radius:10px;
 padding:8px 20px;
@@ -160,44 +160,6 @@ with col3:
     p,c = market_metric("^NSEBANK")
     st.metric("BANK NIFTY", p, str(c)+"%")
 
-
-# ======================
-# TOP GAINERS LOSERS
-# ======================
-
-st.subheader("🚀 Top Gainers & Losers")
-
-tickers = ["RELIANCE.NS","TCS.NS","INFY.NS","HDFCBANK.NS","ICICIBANK.NS"]
-
-data = yf.download(tickers,period="2d",progress=False)
-
-changes = {}
-
-for t in tickers:
-
-    try:
-
-        close = data["Close"][t]
-
-        change = ((close.iloc[-1]-close.iloc[-2])/close.iloc[-2])*100
-
-        changes[t] = round(change,2)
-
-    except:
-        pass
-
-
-df = pd.DataFrame(list(changes.items()),columns=["Stock","Change %"])
-
-col1,col2 = st.columns(2)
-
-with col1:
-    st.write("📈 Top Gainers")
-    st.dataframe(df.sort_values("Change %",ascending=False), width="stretch")
-
-with col2:
-    st.write("📉 Top Losers")
-    st.dataframe(df.sort_values("Change %"), width="stretch")
 
 
 # ======================
